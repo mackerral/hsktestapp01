@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { HskWord } from "@/lib/hsk-lists";
 
@@ -14,49 +15,39 @@ const statusStyles: Record<Status | "neutral", string> = {
     "bg-rose-50 border-rose-400 text-rose-900 dark:bg-rose-950 dark:border-rose-600 dark:text-rose-100 shadow-sm",
 };
 
-/** Shared player so rapid taps interrupt previous audio. */
-let audioPlayer: HTMLAudioElement | null = null;
+/** Same approach as jamdai.com: device Web Speech API only. */
+let cachedVoices: SpeechSynthesisVoice[] = [];
 
-function buildTtsUrl(text: string) {
-  // Youdao dict TTS — works on phone browsers where speechSynthesis often has no zh voice
-  return `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=zh`;
+function loadVoices() {
+  if (typeof window === "undefined" || !window.speechSynthesis) return;
+  cachedVoices = window.speechSynthesis.getVoices();
 }
 
-function speakWithWebSpeech(text: string) {
-  if (!window.speechSynthesis) return;
-  const synth = window.speechSynthesis;
-  synth.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "zh-CN";
-  utterance.rate = 0.92;
-  const voice =
-    synth.getVoices().find((v) => v.lang.toLowerCase().startsWith("zh")) ?? null;
-  if (voice) utterance.voice = voice;
-  synth.speak(utterance);
+function pickChineseVoice(): SpeechSynthesisVoice | null {
+  if (!cachedVoices.length) loadVoices();
+  return (
+    cachedVoices.find((v) => v.lang.toLowerCase().startsWith("zh")) ?? null
+  );
 }
 
 function speak(text: string) {
-  if (typeof window === "undefined" || !text) return;
+  if (typeof window === "undefined" || !window.speechSynthesis || !text) return;
 
-  // Stop browser TTS if any
-  window.speechSynthesis?.cancel();
+  try {
+    const synth = window.speechSynthesis;
+    synth.cancel();
 
-  if (!audioPlayer) audioPlayer = new Audio();
-  const player = audioPlayer;
-  player.pause();
-  player.currentTime = 0;
-  player.src = buildTtsUrl(text);
-  player.playbackRate = 0.95;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "zh-CN";
+    utterance.rate = 0.85;
 
-  const play = player.play();
-  if (play && typeof play.catch === "function") {
-    play.catch(() => {
-      // Network / blocked audio → fall back to device speech
-      speakWithWebSpeech(text);
-    });
+    const voice = pickChineseVoice();
+    if (voice) utterance.voice = voice;
+
+    synth.speak(utterance);
+  } catch {
+    // ignore — same as jamdai
   }
-
-  player.onerror = () => speakWithWebSpeech(text);
 }
 
 export function HskWordGrid({
@@ -78,6 +69,15 @@ export function HskWordGrid({
   showSound: boolean;
   superGrid: boolean;
 }) {
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
+
   return (
     <div
       className={cn(
