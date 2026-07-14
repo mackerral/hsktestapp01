@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { HskWord } from "@/lib/hsk-lists";
 
@@ -15,42 +14,49 @@ const statusStyles: Record<Status | "neutral", string> = {
     "bg-rose-50 border-rose-400 text-rose-900 dark:bg-rose-950 dark:border-rose-600 dark:text-rose-100 shadow-sm",
 };
 
-/** Same voice-picking approach as the working ChineseReader flashcards HTML. */
-let cachedVoices: SpeechSynthesisVoice[] = [];
+/** Shared player so rapid taps interrupt previous audio. */
+let audioPlayer: HTMLAudioElement | null = null;
 
-function loadVoices() {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  cachedVoices = window.speechSynthesis.getVoices();
+function buildTtsUrl(text: string) {
+  // Youdao dict TTS — works on phone browsers where speechSynthesis often has no zh voice
+  return `https://dict.youdao.com/dictvoice?audio=${encodeURIComponent(text)}&le=zh`;
 }
 
-function pickVoice(langPrefix: string): SpeechSynthesisVoice | null {
-  const matches = cachedVoices.filter((v) =>
-    v.lang.toLowerCase().startsWith(langPrefix.toLowerCase()),
-  );
-  return matches.find((v) => v.localService) || matches[0] || null;
+function speakWithWebSpeech(text: string) {
+  if (!window.speechSynthesis) return;
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "zh-CN";
+  utterance.rate = 0.92;
+  const voice =
+    synth.getVoices().find((v) => v.lang.toLowerCase().startsWith("zh")) ?? null;
+  if (voice) utterance.voice = voice;
+  synth.speak(utterance);
 }
 
 function speak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis || !text) return;
+  if (typeof window === "undefined" || !text) return;
 
-  const synth = window.speechSynthesis;
-  // Must cancel + speak in the same user-gesture turn (no setTimeout),
-  // or Chrome blocks speech with "not-allowed".
-  synth.cancel();
+  // Stop browser TTS if any
+  window.speechSynthesis?.cancel();
 
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "zh-CN";
-  const voice = pickVoice("zh");
-  if (voice) utterance.voice = voice;
-  utterance.rate = 0.92;
+  if (!audioPlayer) audioPlayer = new Audio();
+  const player = audioPlayer;
+  player.pause();
+  player.currentTime = 0;
+  player.src = buildTtsUrl(text);
+  player.playbackRate = 0.95;
 
-  utterance.onerror = (e) => {
-    if (e.error !== "interrupted" && e.error !== "canceled") {
-      console.warn("Speech synthesis error:", e.error);
-    }
-  };
+  const play = player.play();
+  if (play && typeof play.catch === "function") {
+    play.catch(() => {
+      // Network / blocked audio → fall back to device speech
+      speakWithWebSpeech(text);
+    });
+  }
 
-  synth.speak(utterance);
+  player.onerror = () => speakWithWebSpeech(text);
 }
 
 export function HskWordGrid({
@@ -72,15 +78,6 @@ export function HskWordGrid({
   showSound: boolean;
   superGrid: boolean;
 }) {
-  useEffect(() => {
-    if (!window.speechSynthesis) return;
-    loadVoices();
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    return () => {
-      window.speechSynthesis.onvoiceschanged = null;
-    };
-  }, []);
-
   return (
     <div
       className={cn(
