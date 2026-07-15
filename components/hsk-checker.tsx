@@ -6,6 +6,7 @@ import {
   Languages,
   LayoutGrid,
   Menu,
+  Scaling,
   Settings,
   Volume2,
   VolumeX,
@@ -24,6 +25,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { HskWordGrid } from "@/components/hsk-word-grid";
+import { HskSwipeDeck } from "@/components/hsk-swipe-deck";
 import {
   HSK_LISTS,
   loadStatus,
@@ -70,9 +72,17 @@ export function HskChecker({
   const [showTranslation, setShowTranslation] = useState(true);
   const [showSound, setShowSound] = useState(true);
   const [superGrid, setSuperGrid] = useState(false);
+  const [columns, setColumns] = useState(4);
+  const [swipeMode, setSwipeMode] = useState(false);
+  const [swipeIndex, setSwipeIndex] = useState<number | null>(null);
+
+  const [confirmUnlearn, setConfirmUnlearn] = useState(false);
+  const [showSizePanel, setShowSizePanel] = useState(false);
 
   useEffect(() => {
     setStatus(loadStatus(listId));
+    setSwipeMode(false);
+    setSwipeIndex(null);
   }, [listId]);
 
   const ids = useMemo(
@@ -83,8 +93,6 @@ export function HskChecker({
   const knownCount = ids.filter((id) => status[id] === "known").length;
   const reviewCount = ids.filter((id) => status[id] === "unknown").length;
 
-  // Freeze need-review order when entering the mode / switching lists so
-  // marking a word "known" doesn't jump it to the bottom mid-session.
   const [needReviewOrder, setNeedReviewOrder] = useState<number[]>([]);
   useEffect(() => {
     if (orderMode !== "needReview") return;
@@ -97,7 +105,6 @@ export function HskChecker({
     setNeedReviewOrder(
       words.map((_, i) => i).sort((a, b) => rank(a) - rank(b) || a - b),
     );
-    // status intentionally omitted — only re-sort on mode/list change
     // eslint-disable-next-line react-hooks/exhaustive-deps -- freeze against status toggles
   }, [orderMode, listId, words, ids]);
 
@@ -111,6 +118,9 @@ export function HskChecker({
     return words.map((_, i) => i);
   }, [words, orderMode, shuffleSeed, needReviewOrder]);
 
+  const orderedWords = useMemo(() => order.map((i) => words[i]), [order, words]);
+  const orderedIds = useMemo(() => order.map((i) => ids[i]), [order, ids]);
+
   function toggleWord(id: string) {
     setStatus((prev) => {
       const current = prev[id];
@@ -121,13 +131,33 @@ export function HskChecker({
     });
   }
 
+  function setWordStatus(id: string, next: Status) {
+    setStatus((prev) => {
+      const updated = { ...prev, [id]: next };
+      localStorage.setItem(statusStorageKey(listId), JSON.stringify(updated));
+      return updated;
+    });
+  }
+
   function unlearnAll() {
     localStorage.removeItem(statusStorageKey(listId));
     setStatus({});
+    setConfirmUnlearn(false);
   }
 
+  function advanceSwipe() {
+    setSwipeIndex((i) => {
+      if (i == null) return null;
+      if (i >= orderedWords.length - 1) return null;
+      return i + 1;
+    });
+  }
+
+  const pickingStart = swipeMode && swipeIndex == null;
+  const swiping = swipeMode && swipeIndex != null;
+
   const navBtn =
-    "inline-flex h-12 min-w-12 touch-manipulation items-center justify-center gap-2 rounded-lg border px-4 text-sm font-medium transition-colors sm:h-11 sm:min-w-14 sm:px-5 [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5";
+    "inline-flex h-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-sm font-medium transition-colors sm:h-11 sm:gap-2 sm:px-4 [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5";
 
   const navBtnOff = "border-border bg-background text-foreground hover:bg-muted";
   const navBtnOn =
@@ -150,7 +180,7 @@ export function HskChecker({
             <button
               type="button"
               aria-pressed={superGrid}
-              aria-label="Toggle super grid"
+              aria-label="ภาพรวม"
               onClick={() => setSuperGrid((v) => !v)}
               className={cn(
                 "inline-flex h-8 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-colors [-webkit-tap-highlight-color:transparent]",
@@ -158,14 +188,26 @@ export function HskChecker({
               )}
             >
               <LayoutGrid className="size-4" />
-              <span className="hidden sm:inline">Grid</span>
+              <span>ภาพรวม</span>
+            </button>
+            <button
+              type="button"
+              aria-label="Size and swipe settings"
+              onClick={() => setShowSizePanel(true)}
+              className={cn(
+                "inline-flex h-8 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-colors [-webkit-tap-highlight-color:transparent]",
+                showSizePanel || swipeMode ? gridBtnOn : navBtnOff,
+              )}
+            >
+              <Scaling className="size-4" />
+              <span>ขนาด</span>
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
                   <Button variant="outline" size="sm">
                     <Settings className="size-4" />
-                    Settings
+                    จัดเรียง/ลบ
                   </Button>
                 }
               />
@@ -195,7 +237,10 @@ export function HskChecker({
                   Reshuffle
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={unlearnAll}>
+                <DropdownMenuItem
+                  variant="destructive"
+                  onClick={() => setConfirmUnlearn(true)}
+                >
                   Unlearn all words in {listLabel}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -204,30 +249,170 @@ export function HskChecker({
         </div>
       </div>
 
+      {showSizePanel && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="size-title"
+          onClick={() => setShowSizePanel(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="size-title" className="text-lg font-semibold tracking-tight">
+              Card layout
+            </h2>
+
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium">Max columns</span>
+                <span className="tabular-nums text-muted-foreground">{columns}</span>
+              </div>
+              <input
+                type="range"
+                min={2}
+                max={6}
+                step={1}
+                value={columns}
+                disabled={swipeMode}
+                onChange={(e) => setColumns(Number(e.target.value))}
+                className="w-full accent-foreground disabled:opacity-40"
+              />
+              <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+                {[2, 3, 4, 5, 6].map((n) => (
+                  <span key={n}>{n}</span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-3">
+              <div>
+                <div className="text-sm font-medium">Swipe mode</div>
+                <div className="text-xs text-muted-foreground">
+                  One card · swipe right known · left need learn
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={swipeMode}
+                onClick={() => {
+                  setSwipeMode((v) => {
+                    const next = !v;
+                    if (!next) setSwipeIndex(null);
+                    return next;
+                  });
+                }}
+                className={cn(
+                  "relative h-7 w-12 shrink-0 rounded-full transition-colors",
+                  swipeMode ? "bg-sky-500" : "bg-muted",
+                )}
+              >
+                <span
+                  className={cn(
+                    "absolute top-0.5 left-0.5 size-6 rounded-full bg-white shadow transition-transform",
+                    swipeMode && "translate-x-5",
+                  )}
+                />
+              </button>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <Button size="sm" onClick={() => setShowSizePanel(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmUnlearn && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="unlearn-title"
+          onClick={() => setConfirmUnlearn(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-xl border border-border bg-background p-5 shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="unlearn-title" className="text-lg font-semibold tracking-tight">
+              Unlearn all words?
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              This clears all known / need-review marks for {listLabel}. You can&apos;t
+              undo this.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setConfirmUnlearn(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" size="sm" onClick={unlearnAll}>
+                Unlearn all
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pickingStart && (
+        <div className="border-b border-sky-200 bg-sky-50 px-6 py-3 text-center text-sm font-medium text-sky-900 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
+          Choose a word you want to start
+        </div>
+      )}
+
       <div className="mx-auto w-full max-w-5xl px-6 py-6 pb-40">
         <HskWordGrid
-          words={order.map((i) => words[i])}
-          ids={order.map((i) => ids[i])}
+          words={orderedWords}
+          ids={orderedIds}
           status={status}
           onToggle={toggleWord}
+          onPick={(i) => setSwipeIndex(i)}
           showPinyin={showPinyin}
           showTranslation={showTranslation}
           showSound={showSound}
           superGrid={superGrid}
+          columns={columns}
+          pickMode={pickingStart}
         />
       </div>
 
+      {swiping && swipeIndex != null && orderedWords[swipeIndex] && (
+        <HskSwipeDeck
+          word={orderedWords[swipeIndex]}
+          pinyin={orderedWords[swipeIndex].pinyin}
+          thai={orderedWords[swipeIndex].thai}
+          status={status[orderedIds[swipeIndex]] ?? "neutral"}
+          index={swipeIndex}
+          total={orderedWords.length}
+          showPinyin={showPinyin}
+          showTranslation={showTranslation}
+          onKnown={() => {
+            setWordStatus(orderedIds[swipeIndex], "known");
+            advanceSwipe();
+          }}
+          onNeedLearn={() => {
+            setWordStatus(orderedIds[swipeIndex], "unknown");
+            advanceSwipe();
+          }}
+          onExit={() => {
+            setSwipeIndex(null);
+            setSwipeMode(false);
+          }}
+        />
+      )}
+
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-center gap-2.5 px-4 py-3 sm:gap-3 sm:px-6">
-          <button
-            type="button"
-            onClick={onBack}
-            className={cn(navBtn, navBtnOff)}
-          >
-            <Menu className="size-5" />
+        <div className="mx-auto flex w-full max-w-5xl flex-nowrap items-center justify-center gap-1.5 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-6">
+          <button type="button" onClick={onBack} className={cn(navBtn, navBtnOff)}>
+            <Menu className="size-5 shrink-0" />
             <span>เมนู</span>
           </button>
-          <div className="mx-0.5 h-8 w-px bg-border sm:mx-1" />
+          <div className="mx-0.5 h-8 w-px shrink-0 bg-border" />
           <button
             type="button"
             aria-pressed={showPinyin}
@@ -235,7 +420,7 @@ export function HskChecker({
             onClick={() => setShowPinyin((v) => !v)}
             className={cn(navBtn, showPinyin ? navBtnOn : navBtnOff)}
           >
-            <ALargeSmall className="size-5" />
+            <ALargeSmall className="size-5 shrink-0" />
             <span>พินอิน</span>
           </button>
           <button
@@ -245,7 +430,7 @@ export function HskChecker({
             onClick={() => setShowTranslation((v) => !v)}
             className={cn(navBtn, showTranslation ? navBtnOn : navBtnOff)}
           >
-            <Languages className="size-5" />
+            <Languages className="size-5 shrink-0" />
             <span>แปล</span>
           </button>
           <button
@@ -256,9 +441,9 @@ export function HskChecker({
             className={cn(navBtn, showSound ? navBtnOn : navBtnOff)}
           >
             {showSound ? (
-              <Volume2 className="size-5" />
+              <Volume2 className="size-5 shrink-0" />
             ) : (
-              <VolumeX className="size-5 opacity-70" />
+              <VolumeX className="size-5 shrink-0 opacity-70" />
             )}
             <span>เสียง</span>
           </button>

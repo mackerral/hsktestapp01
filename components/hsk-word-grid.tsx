@@ -55,19 +55,25 @@ export function HskWordGrid({
   ids,
   status,
   onToggle,
+  onPick,
   showPinyin,
   showTranslation,
   showSound,
   superGrid,
+  columns = 4,
+  pickMode = false,
 }: {
   words: HskWord[];
   ids: string[];
   status: StatusMap;
   onToggle: (id: string) => void;
+  onPick?: (index: number) => void;
   showPinyin: boolean;
   showTranslation: boolean;
   showSound: boolean;
   superGrid: boolean;
+  columns?: number;
+  pickMode?: boolean;
 }) {
   useEffect(() => {
     if (!window.speechSynthesis) return;
@@ -78,18 +84,72 @@ export function HskWordGrid({
     };
   }, []);
 
+  const colClass =
+    {
+      2: "grid-cols-2",
+      3: "grid-cols-3",
+      4: "grid-cols-4",
+      5: "grid-cols-5",
+      6: "grid-cols-6",
+    }[columns] ?? "grid-cols-4";
+
+  // Fewer columns → larger type; more columns → denser type
+  const typeByCol: Record<
+    number,
+    { card: string; zh: string; py: string; th: string }
+  > = {
+    2: {
+      card: "min-h-28 gap-2 px-4 py-6 sm:min-h-36 sm:px-5 sm:py-8",
+      zh: "text-4xl sm:text-5xl font-bold leading-tight",
+      py: "text-base sm:text-lg font-medium opacity-65",
+      th: "text-sm sm:text-base font-medium opacity-60",
+    },
+    3: {
+      card: "min-h-24 gap-1.5 px-3 py-5 sm:min-h-28 sm:px-4 sm:py-6",
+      zh: "text-3xl sm:text-4xl font-bold leading-tight",
+      py: "text-sm sm:text-base font-medium opacity-65",
+      th: "text-xs sm:text-sm font-medium opacity-60",
+    },
+    4: {
+      card: "min-h-20 gap-1 px-2.5 py-4 sm:min-h-24 sm:px-3 sm:py-5",
+      zh: "text-2xl sm:text-3xl font-bold leading-tight",
+      py: "text-xs sm:text-sm font-medium opacity-65",
+      th: "text-[11px] sm:text-xs font-medium opacity-60",
+    },
+    5: {
+      card: "min-h-16 gap-1 px-2 py-3 sm:min-h-20 sm:px-2.5 sm:py-4",
+      zh: "text-xl sm:text-2xl font-bold leading-tight",
+      py: "text-[11px] sm:text-xs font-medium opacity-65",
+      th: "text-[10px] sm:text-[11px] font-medium opacity-60",
+    },
+    6: {
+      card: "min-h-14 gap-0.5 px-1.5 py-2.5 sm:min-h-16 sm:px-2 sm:py-3",
+      zh: "text-lg sm:text-xl font-bold leading-tight",
+      py: "text-[10px] sm:text-[11px] font-medium opacity-65",
+      th: "text-[9px] sm:text-[10px] font-medium opacity-60",
+    },
+  };
+  const type = typeByCol[columns] ?? typeByCol[4];
+
   return (
     <div
       className={cn(
-        "grid",
-        superGrid
-          ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5"
-          : "grid-cols-4 gap-2 sm:gap-3 lg:grid-cols-5 xl:grid-cols-6",
+        "grid gap-2 sm:gap-3",
+        superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
       )}
     >
       {words.map((word, i) => {
         const id = ids[i];
         const current: Status | "neutral" = status[id] ?? "neutral";
+
+        const handleClick = () => {
+          if (pickMode && onPick) {
+            onPick(i);
+            return;
+          }
+          onToggle(id);
+          if (showSound) speak(word.chinese);
+        };
 
         if (superGrid) {
           return (
@@ -97,13 +157,11 @@ export function HskWordGrid({
               key={id}
               type="button"
               title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
-              onClick={() => {
-                onToggle(id);
-                if (showSound) speak(word.chinese);
-              }}
+              onClick={handleClick}
               className={cn(
                 "flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border [-webkit-tap-highlight-color:transparent]",
                 statusStyles[current],
+                pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
               )}
             >
               <span className="block w-full truncate whitespace-nowrap px-0.5 text-center text-[9px] font-medium leading-none">
@@ -117,22 +175,17 @@ export function HskWordGrid({
           <button
             key={id}
             type="button"
-            onClick={() => {
-              onToggle(id);
-              if (showSound) speak(word.chinese);
-            }}
+            onClick={handleClick}
             className={cn(
-              "flex min-h-16 touch-manipulation flex-col items-center justify-center gap-1 rounded-lg border-2 px-3 py-4 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 sm:min-h-20 sm:px-4 sm:py-5 cursor-pointer [-webkit-tap-highlight-color:transparent]",
+              "flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent]",
+              type.card,
               statusStyles[current],
+              pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
             )}
           >
-            <span className="text-xl font-bold sm:text-3xl leading-tight">{word.chinese}</span>
-            {showPinyin && (
-              <span className="text-xs font-medium opacity-65 sm:text-sm">{word.pinyin}</span>
-            )}
-            {showTranslation && (
-              <span className="text-[11px] font-medium opacity-60 sm:text-xs">{word.thai}</span>
-            )}
+            <span className={type.zh}>{word.chinese}</span>
+            {showPinyin && <span className={type.py}>{word.pinyin}</span>}
+            {showTranslation && <span className={type.th}>{word.thai}</span>}
           </button>
         );
       })}
