@@ -175,7 +175,8 @@ export function HskApp({
                 onClick={() => {
                   setPage(item.id);
                   if (item.id !== 3) setActiveSentenceLevel(null);
-                  if (item.id !== 2) setActiveReaderSetId(null);
+                  // Reader tab is hidden; always clear nested reader set on nav.
+                  setActiveReaderSetId(null);
                 }}
                 className={cn(
                   "min-w-0 flex-1 rounded-full px-1 py-2.5 text-center text-[10px] font-medium leading-tight transition-colors sm:px-2 sm:py-3 sm:text-sm",
