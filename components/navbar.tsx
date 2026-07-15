@@ -12,7 +12,7 @@ export function Navbar() {
             Home
           </Link>
           <Link href="/hsk" className="hover:text-foreground">
-            HSK Checker
+            HSK Tracker
           </Link>
         </div>
       </nav>

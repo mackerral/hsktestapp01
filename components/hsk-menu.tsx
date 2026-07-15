@@ -43,7 +43,7 @@ export function HskMenu({
       <div className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-4 py-6 sm:px-6">
         <div className="mb-4 text-center sm:mb-5">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
-            HSK Checker
+            HSK Tracker
           </h1>
           <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
             Pick a level to practice

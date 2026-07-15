@@ -6,14 +6,18 @@ import { HskChecker } from "@/components/hsk-checker";
 import { QuizMenu, type QuizModeId, type QuizSettings } from "@/components/quiz-menu";
 import { QuizSession } from "@/components/quiz-session";
 import { HskReaderMenu, HskReaderView } from "@/components/hsk-reader";
+import { HskSentencesView } from "@/components/hsk-sentences";
+import { HskFilesView } from "@/components/hsk-files";
 import { cn } from "@/lib/utils";
 import { resetHskStorageIfNeeded, type HskWord, type ListId } from "@/lib/hsk-lists";
 import type { ChineseStory } from "@/lib/chinese-stories";
+import type { SentenceLevelGroup } from "@/lib/sentences";
 
 const PAGES = [
-  { label: "HSK Checker", short: "HSK" },
-  { label: "Quiz รวม", short: "Quiz รวม" },
-  { label: "HSK Reader", short: "Reader" },
+  { id: 0, label: "HSK Tracker", short: "HSK" },
+  // Hidden for now: Quiz รวม (1), HSK Reader (2)
+  { id: 3, label: "รวมประโยค", short: "รวมประโยค" },
+  { id: 4, label: "แจกไฟล์", short: "แจกไฟล์" },
 ] as const;
 
 type ActiveQuiz = {
@@ -26,15 +30,20 @@ type ActiveQuiz = {
 export function HskApp({
   wordsByList,
   stories,
+  sentenceGroups,
 }: {
   wordsByList: Record<ListId, HskWord[]>;
   stories: ChineseStory[];
+  sentenceGroups: SentenceLevelGroup[];
 }) {
   const [activeList, setActiveList] = useState<ListId | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<ActiveQuiz | null>(null);
   const [activeStoryId, setActiveStoryId] = useState<string | null>(null);
   const [activeReaderSetId, setActiveReaderSetId] = useState<string | null>(null);
-  // 0 = HSK Checker, 1 = Quiz, 2 = HSK Reader
+  const [activeSentenceLevel, setActiveSentenceLevel] = useState<number | null>(
+    null,
+  );
+  // 0 = HSK Tracker, 1 = Quiz, 2 = HSK Reader, 3 = รวมประโยค, 4 = แจกไฟล์
   const [page, setPage] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
 
@@ -106,6 +115,17 @@ export function HskApp({
     );
   }
 
+  if (page === 3 && activeSentenceLevel != null) {
+    return (
+      <HskSentencesView
+        groups={sentenceGroups}
+        wordsByList={wordsByList}
+        activeLevel={activeSentenceLevel}
+        onSelectLevel={setActiveSentenceLevel}
+      />
+    );
+  }
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -134,19 +154,32 @@ export function HskApp({
             onSelectStory={setActiveStoryId}
           />
         )}
+        {page === 3 && (
+          <HskSentencesView
+            groups={sentenceGroups}
+            wordsByList={wordsByList}
+            activeLevel={null}
+            onSelectLevel={setActiveSentenceLevel}
+          />
+        )}
+        {page === 4 && <HskFilesView />}
       </div>
 
       <footer className="sticky bottom-0 z-[70] shrink-0 border-t border-border/60 bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="flex justify-center px-3 pt-3">
-          <div className="flex w-full max-w-xl items-center gap-1 rounded-full border border-border bg-background px-1.5 py-1.5 shadow-sm sm:gap-2 sm:px-3 sm:py-2">
-            {PAGES.map((item, i) => (
+        <div className="flex justify-center px-2 pt-3 sm:px-3">
+          <div className="flex w-full max-w-xl items-center gap-0.5 rounded-full border border-border bg-background px-1 py-1.5 shadow-sm sm:gap-1.5 sm:px-2 sm:py-2">
+            {PAGES.map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onClick={() => setPage(i)}
+                onClick={() => {
+                  setPage(item.id);
+                  if (item.id !== 3) setActiveSentenceLevel(null);
+                  if (item.id !== 2) setActiveReaderSetId(null);
+                }}
                 className={cn(
-                  "min-w-0 flex-1 rounded-full px-2 py-2.5 text-center text-xs font-medium transition-colors sm:px-3 sm:py-3 sm:text-sm",
-                  page === i
+                  "min-w-0 flex-1 rounded-full px-1 py-2.5 text-center text-[10px] font-medium leading-tight transition-colors sm:px-2 sm:py-3 sm:text-sm",
+                  page === item.id
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:bg-muted",
                 )}
