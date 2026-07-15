@@ -367,7 +367,7 @@ export function HskReaderView({
   const [showLevels, setShowLevels] = useState(false);
 
   const navBtn =
-    "inline-flex h-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-sm font-medium transition-colors sm:px-4 [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5";
+    "flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-lg border px-0.5 py-1.5 text-[10px] font-medium leading-tight transition-colors sm:flex-row sm:gap-1.5 sm:px-2 sm:py-2.5 sm:text-sm [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0";
   const navBtnOff = "border-border bg-background text-foreground hover:bg-muted";
   const navBtnOn =
     "border-sky-300 bg-sky-100 text-sky-800 hover:bg-sky-200 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-200";
@@ -385,21 +385,20 @@ export function HskReaderView({
         />
       </div>
 
-      <div className="shrink-0 border-t border-border bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex w-full max-w-3xl flex-nowrap items-center justify-center gap-1 overflow-x-auto px-2 py-3 sm:gap-2 sm:px-4">
+      <div className="shrink-0 border-t border-border bg-background/95 pb-[max(0.5rem,env(safe-area-inset-bottom))] backdrop-blur">
+        <div className="mx-auto grid w-full max-w-3xl grid-cols-5 gap-1 px-1.5 py-2 sm:gap-2 sm:px-4 sm:py-3">
           <button type="button" onClick={onBack} className={cn(navBtn, navBtnOff)}>
-            <Menu className="size-5 shrink-0" />
-            <span>เมนู</span>
+            <Menu />
+            <span className="truncate">เมนู</span>
           </button>
-          <div className="mx-0.5 h-8 w-px shrink-0 bg-border" />
           <button
             type="button"
             aria-pressed={showPinyin}
             onClick={() => setShowPinyin((v) => !v)}
             className={cn(navBtn, showPinyin ? navBtnOn : navBtnOff)}
           >
-            <ALargeSmall className="size-5 shrink-0" />
-            <span>{showPinyin ? "ปิดพินอิน" : "เปิดพินอิน"}</span>
+            <ALargeSmall />
+            <span className="truncate">พินอิน</span>
           </button>
           <button
             type="button"
@@ -407,8 +406,8 @@ export function HskReaderView({
             onClick={() => setShowThai((v) => !v)}
             className={cn(navBtn, showThai ? navBtnOn : navBtnOff)}
           >
-            <Languages className="size-5 shrink-0" />
-            <span>{showThai ? "ปิดคำศัพท์" : "เปิดคำศัพท์"}</span>
+            <Languages />
+            <span className="truncate">คำศัพท์</span>
           </button>
           <button
             type="button"
@@ -416,8 +415,8 @@ export function HskReaderView({
             onClick={() => setShowParagraphThai((v) => !v)}
             className={cn(navBtn, showParagraphThai ? navBtnOn : navBtnOff)}
           >
-            <BookText className="size-5 shrink-0" />
-            <span>{showParagraphThai ? "ปิดคำแปล" : "เปิดคำแปล"}</span>
+            <BookText />
+            <span className="truncate">คำแปล</span>
           </button>
           <button
             type="button"
@@ -425,8 +424,8 @@ export function HskReaderView({
             onClick={() => setShowLevels((v) => !v)}
             className={cn(navBtn, showLevels ? navBtnOn : navBtnOff)}
           >
-            <Underline className="size-5 shrink-0" />
-            <span>{showLevels ? "ซ่อน HSK" : "แสดง HSK"}</span>
+            <Underline />
+            <span className="truncate">HSK</span>
           </button>
         </div>
       </div>
@@ -483,9 +482,9 @@ export function HskReaderMenu({
           <button
             type="button"
             onClick={() => onSelectSet(null)}
-            className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+            className="mb-5 inline-flex h-12 touch-manipulation items-center gap-2 rounded-xl border border-border bg-background px-4 text-base font-semibold text-foreground transition-colors hover:bg-muted active:bg-muted [-webkit-tap-highlight-color:transparent]"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-6 shrink-0" />
             กลับเมนู
           </button>
 
@@ -499,13 +498,6 @@ export function HskReaderMenu({
                 {setStats.get(activeSet.id)?.total ?? 0}
               </span>
             </p>
-          </div>
-
-          <div className="mb-5 rounded-xl border border-border bg-muted/20 p-3.5">
-            <div className="mb-2 text-xs font-medium text-muted-foreground">
-              HSK ทั้งชุด (คำไม่ซ้ำ)
-            </div>
-            <LevelStatsBlock stats={setStats.get(activeSet.id)!} />
           </div>
 
           <div className="grid gap-2.5">
