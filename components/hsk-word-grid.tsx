@@ -22,24 +22,28 @@ export function HskWordGrid({
   status,
   onToggle,
   onPick,
+  onHop,
   showPinyin,
   showTranslation,
   showSound,
   superGrid,
   columns = 4,
   pickMode = false,
+  highlightIndex = null,
 }: {
   words: HskWord[];
   ids: string[];
   status: StatusMap;
   onToggle: (id: string) => void;
   onPick?: (index: number) => void;
+  onHop?: (index: number) => void;
   showPinyin: boolean;
   showTranslation: boolean;
   showSound: boolean;
   superGrid: boolean;
   columns?: number;
   pickMode?: boolean;
+  highlightIndex?: number | null;
 }) {
   useEffect(() => {
     if (!window.speechSynthesis) return;
@@ -113,6 +117,10 @@ export function HskWordGrid({
             onPick(i);
             return;
           }
+          if (superGrid && onHop) {
+            onHop(i);
+            return;
+          }
           onToggle(id);
           if (showSound) speak(word.chinese);
         };
@@ -141,12 +149,14 @@ export function HskWordGrid({
           <button
             key={id}
             type="button"
+            data-word-index={i}
             onClick={handleClick}
             className={cn(
-              "flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent]",
+              "flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent] scroll-mt-36 scroll-mb-28",
               type.card,
               statusStyles[current],
               pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
+              highlightIndex === i && "ring-2 ring-sky-500 ring-offset-2",
             )}
           >
             <span className={type.zh}>{word.chinese}</span>

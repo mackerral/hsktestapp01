@@ -4,10 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ALargeSmall,
   Languages,
-  LayoutGrid,
   Menu,
-  Scaling,
-  Settings,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -27,6 +24,14 @@ import {
 import { HskWordGrid } from "@/components/hsk-word-grid";
 import { HskSwipeDeck } from "@/components/hsk-swipe-deck";
 import {
+  countQuizPool,
+  clampRandomCount,
+  QUIZ_MODES,
+  type QuizModeId,
+  type QuizSettings,
+  type QuizStatusFilter,
+} from "@/components/quiz-menu";
+import {
   HSK_LISTS,
   loadStatus,
   statusStorageKey,
@@ -38,6 +43,12 @@ import {
 } from "@/lib/hsk-lists";
 
 type OrderMode = "default" | "needReview" | "random";
+
+const DEFAULT_TINY_STATUSES: QuizStatusFilter = {
+  known: true,
+  unknown: true,
+  neutral: true,
+};
 
 function shuffledIndices(count: number, seed: number) {
   const indices = Array.from({ length: count }, (_, i) => i);
@@ -56,11 +67,19 @@ function shuffledIndices(count: number, seed: number) {
 export function HskChecker({
   listId,
   words,
+  wordsByList,
   onBack,
+  onStartQuiz,
 }: {
   listId: ListId;
   words: HskWord[];
+  wordsByList: Record<ListId, HskWord[]>;
   onBack: () => void;
+  onStartQuiz: (
+    preset: QuizModeId,
+    title: string,
+    settings: QuizSettings,
+  ) => void;
 }) {
   const listLabel = HSK_LISTS.find((l) => l.id === listId)?.label ?? listId;
 
@@ -78,12 +97,35 @@ export function HskChecker({
 
   const [confirmUnlearn, setConfirmUnlearn] = useState(false);
   const [showSizePanel, setShowSizePanel] = useState(false);
+  const [showTinyQuiz, setShowTinyQuiz] = useState(false);
+  const [hopIndex, setHopIndex] = useState<number | null>(null);
+  const [tinyMode, setTinyMode] = useState<QuizModeId>("zh-th");
+  const [tinyStatuses, setTinyStatuses] = useState<QuizStatusFilter>({
+    ...DEFAULT_TINY_STATUSES,
+  });
+  const [tinyCount, setTinyCount] = useState<number | "all">(10);
 
   useEffect(() => {
     setStatus(loadStatus(listId));
     setSwipeMode(false);
     setSwipeIndex(null);
+    setHopIndex(null);
   }, [listId]);
+
+  useEffect(() => {
+    if (hopIndex == null || superGrid) return;
+    const frame = requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-word-index="${hopIndex}"]`,
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const t = window.setTimeout(() => setHopIndex(null), 1600);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(t);
+    };
+  }, [hopIndex, superGrid]);
 
   const ids = useMemo(
     () => words.map((w, i) => wordId(w.chinese, w.pinyin, i)),
@@ -91,7 +133,6 @@ export function HskChecker({
   );
 
   const knownCount = ids.filter((id) => status[id] === "known").length;
-  const reviewCount = ids.filter((id) => status[id] === "unknown").length;
 
   const [needReviewOrder, setNeedReviewOrder] = useState<number[]>([]);
   useEffect(() => {
@@ -165,66 +206,122 @@ export function HskChecker({
   const gridBtnOn =
     "border-foreground bg-foreground text-background hover:bg-foreground/90";
 
+  const tinySettings: QuizSettings = {
+    mode: tinyMode,
+    questionCount: tinyCount,
+    levels: [listId],
+    choiceCount: 4,
+    statuses: tinyStatuses,
+  };
+  const tinyPoolCount = countQuizPool(wordsByList, tinySettings);
+  const tinyMax = Math.max(1, Math.min(50, tinyPoolCount));
+  const tinyMin = Math.min(5, tinyMax);
+  const tinySliderValue =
+    tinyCount === "all"
+      ? tinyMin
+      : clampRandomCount(tinyCount, tinyPoolCount);
+
+  useEffect(() => {
+    if (!showTinyQuiz || tinyCount === "all") return;
+    if (typeof tinyCount !== "number") return;
+    const clamped = clampRandomCount(tinyCount, tinyPoolCount);
+    if (tinyCount !== clamped) setTinyCount(clamped);
+  }, [showTinyQuiz, tinyStatuses, tinyPoolCount, tinyCount]);
+
+  function startTinyQuiz() {
+    const statuses = { ...tinyStatuses };
+    if (!statuses.known && !statuses.unknown && !statuses.neutral) {
+      statuses.neutral = true;
+    }
+    const settings: QuizSettings = {
+      mode: tinyMode,
+      questionCount:
+        tinyCount === "all"
+          ? "all"
+          : clampRandomCount(
+              tinyCount,
+              countQuizPool(wordsByList, {
+                mode: tinyMode,
+                questionCount: tinyCount,
+                levels: [listId],
+                choiceCount: 4,
+                statuses,
+              }),
+            ),
+      levels: [listId],
+      choiceCount: 4,
+      statuses,
+    };
+    const label =
+      QUIZ_MODES.find((m) => m.id === tinyMode)?.label ?? tinyMode;
+    setShowTinyQuiz(false);
+    onStartQuiz(tinyMode, `${listLabel} · ${label}`, settings);
+  }
+
   return (
-    <div>
-      <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6 sm:py-4">
-          <div>
-            <div className="text-base font-semibold tracking-tight sm:text-lg">{listLabel}</div>
-            <div className="text-xs text-muted-foreground sm:text-sm">
-              {words.length} total · {knownCount} known · {reviewCount} need review
+    <div className="min-h-dvh">
+      <div className="sticky top-0 z-40 border-b border-border bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+        <div className="mx-auto w-full max-w-5xl px-3 py-3 sm:px-6 sm:py-4">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <div className="min-w-0">
+              <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                {listLabel}
+              </div>
+              <div className="truncate text-sm font-medium text-muted-foreground sm:text-base">
+                {knownCount}/{words.length}
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <button
               type="button"
               aria-pressed={superGrid}
               aria-label="ภาพรวม"
               onClick={() => setSuperGrid((v) => !v)}
               className={cn(
-                "inline-flex h-10 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:h-11 sm:px-3.5 [-webkit-tap-highlight-color:transparent]",
+                "inline-flex h-11 touch-manipulation items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors sm:h-12 sm:text-base [-webkit-tap-highlight-color:transparent]",
                 superGrid ? gridBtnOn : navBtnOff,
               )}
             >
-              <LayoutGrid className="size-5" />
-              <span>ภาพรวม</span>
+              ภาพรวม
             </button>
             <button
               type="button"
-              aria-label="Size and swipe settings"
+              aria-label="ขนาด"
               onClick={() => setShowSizePanel(true)}
               className={cn(
-                "inline-flex h-10 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:h-11 sm:px-3.5 [-webkit-tap-highlight-color:transparent]",
+                "inline-flex h-11 touch-manipulation items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors sm:h-12 sm:text-base [-webkit-tap-highlight-color:transparent]",
                 showSizePanel || swipeMode ? gridBtnOn : navBtnOff,
               )}
             >
-              <Scaling className="size-5" />
-              <span>ขนาด</span>
+              ขนาด
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="outline" size="default" className="h-10 gap-1.5 px-3 sm:h-11 sm:px-3.5">
-                    <Settings className="size-5" />
+                  <Button
+                    variant="outline"
+                    className="h-11 w-full px-3 text-sm font-semibold sm:h-12 sm:text-base"
+                  >
                     จัดเรียง/ลบ
                   </Button>
                 }
               />
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel>Order</DropdownMenuLabel>
+                  <DropdownMenuLabel>จัดเรียง</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={orderMode}
                     onValueChange={(value) => setOrderMode(value as OrderMode)}
                   >
                     <DropdownMenuRadioItem value="default">
-                      Sort by order
+                      ตามลำดับเดิม
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="needReview">
-                      Sort by need review
+                      ตามคำที่จำไม่ได้
                     </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="random">Random</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="random">สุ่ม</DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
@@ -234,25 +331,219 @@ export function HskChecker({
                     setShuffleSeed((s) => s + 1);
                   }}
                 >
-                  Reshuffle
+                  สุ่มใหม่
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   variant="destructive"
                   onClick={() => setConfirmUnlearn(true)}
                 >
-                  Unlearn all words in {listLabel}
+                  ลบสถานะทั้งหมดใน {listLabel}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <button
+              type="button"
+              aria-label="Quiz"
+              onClick={() => setShowTinyQuiz(true)}
+              className={cn(
+                "inline-flex h-11 touch-manipulation items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors sm:h-12 sm:text-base [-webkit-tap-highlight-color:transparent]",
+                showTinyQuiz ? gridBtnOn : navBtnOff,
+              )}
+            >
+              Quiz
+            </button>
           </div>
         </div>
+        {superGrid && !pickingStart && (
+          <div className="border-t border-sky-200 bg-sky-50 px-4 py-2.5 text-center text-sm font-medium text-sky-900 sm:px-6 sm:text-base dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
+            กดที่คำ เพื่อกระโดดไปที่คำนั้น
+          </div>
+        )}
         {pickingStart && (
           <div className="border-t border-sky-200 bg-sky-50 px-6 py-4 text-center text-base font-semibold text-sky-900 sm:text-lg dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
             เลือกคำที่ต้องการเริ่ม swipe ;)
           </div>
         )}
       </div>
+
+      {showTinyQuiz && (
+        <div
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowTinyQuiz(false)}
+        >
+          <div
+            className="flex max-h-[85dvh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-background shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="overflow-y-auto p-5 pb-3">
+              <h2 className="text-lg font-semibold tracking-tight">Quiz</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{listLabel}</p>
+
+              <div className="mt-5">
+                <div className="mb-2 text-sm font-medium">โหมด</div>
+                <div className="grid gap-2">
+                  {QUIZ_MODES.map((mode) => (
+                    <button
+                      key={mode.id}
+                      type="button"
+                      onClick={() => setTinyMode(mode.id)}
+                      className={cn(
+                        "rounded-lg border px-3 py-2.5 text-left text-sm font-medium",
+                        tinyMode === mode.id
+                          ? "border-foreground bg-foreground text-background"
+                          : "border-border hover:bg-muted",
+                      )}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="font-medium">จำนวนคำถาม</span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {tinyCount === "all"
+                      ? `ทั้งหมด · ${tinyPoolCount}`
+                      : `สุ่ม · ${tinySliderValue}`}
+                  </span>
+                </div>
+                <div className="mb-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTinyCount(
+                        clampRandomCount(
+                          typeof tinyCount === "number" ? tinyCount : 10,
+                          tinyPoolCount,
+                        ),
+                      )
+                    }
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-sm font-medium",
+                      tinyCount !== "all"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border hover:bg-muted",
+                    )}
+                  >
+                    สุ่ม
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTinyCount("all")}
+                    className={cn(
+                      "rounded-lg border px-3 py-2 text-sm font-medium",
+                      tinyCount === "all"
+                        ? "border-foreground bg-foreground text-background"
+                        : "border-border hover:bg-muted",
+                    )}
+                  >
+                    {tinyCount === "all"
+                      ? `ทั้งหมด · ${tinyPoolCount}`
+                      : "ทั้งหมด"}
+                  </button>
+                </div>
+                {tinyCount !== "all" && (
+                  <>
+                    <input
+                      type="range"
+                      min={tinyMin}
+                      max={tinyMax}
+                      step={1}
+                      value={tinySliderValue}
+                      onChange={(e) =>
+                        setTinyCount(
+                          clampRandomCount(Number(e.target.value), tinyPoolCount),
+                        )
+                      }
+                      className="w-full accent-foreground"
+                    />
+                    <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+                      <span>{tinyMin}</span>
+                      <span>{tinyMax}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <div className="mb-2 text-sm font-medium">เลือกศัพท์</div>
+                <div className="grid gap-2">
+                  {(
+                    [
+                      {
+                        key: "known" as const,
+                        label: "เขียว · จำได้",
+                        dot: "bg-emerald-500",
+                      },
+                      {
+                        key: "unknown" as const,
+                        label: "แดง · จำไม่ได้",
+                        dot: "bg-rose-500",
+                      },
+                      {
+                        key: "neutral" as const,
+                        label: "เทา - ยังไม่ได้กด",
+                        dot: "bg-slate-400",
+                      },
+                    ] as const
+                  ).map((row) => (
+                    <button
+                      key={row.key}
+                      type="button"
+                      onClick={() =>
+                        setTinyStatuses((s) => ({
+                          ...s,
+                          [row.key]: !s[row.key],
+                        }))
+                      }
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left text-sm",
+                        tinyStatuses[row.key]
+                          ? "border-foreground bg-accent/50"
+                          : "border-border opacity-60",
+                      )}
+                    >
+                      <span className={cn("size-3.5 rounded-full", row.dot)} />
+                      <span className="flex-1 font-medium">{row.label}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {tinyStatuses[row.key] ? "ใช้" : "ปิด"}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="shrink-0 border-t border-border bg-background p-4 pt-3">
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="h-12 flex-1 text-base font-semibold"
+                  onClick={() => setShowTinyQuiz(false)}
+                >
+                  ยกเลิก
+                </Button>
+                <Button
+                  className="h-12 flex-[1.4] text-base font-semibold"
+                  disabled={tinyPoolCount < 2}
+                  onClick={startTinyQuiz}
+                >
+                  {tinyPoolCount < 2
+                    ? "คำไม่พอ"
+                    : `เริ่ม Quiz · ${
+                        tinyCount === "all" ? tinyPoolCount : tinySliderValue
+                      }`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showSizePanel && (
         <div
@@ -296,7 +587,7 @@ export function HskChecker({
               <div>
                 <div className="text-sm font-medium">Swipe mode</div>
                 <div className="text-xs text-muted-foreground">
-                  One card · swipe right known · left need learn
+                  One card · ปัดขวา จำได้ · ปัดซ้าย จำไม่ได้
                 </div>
               </div>
               <button
@@ -306,12 +597,8 @@ export function HskChecker({
                 onClick={() => {
                   setSwipeMode((v) => {
                     const next = !v;
-                    if (!next) {
-                      setSwipeIndex(null);
-                    } else {
-                      setSwipeIndex(null);
-                      setShowSizePanel(false);
-                    }
+                    if (!next) setSwipeIndex(null);
+                    else setSwipeIndex(null);
                     return next;
                   });
                 }}
@@ -329,8 +616,12 @@ export function HskChecker({
               </button>
             </div>
 
-            <div className="mt-5 flex justify-end">
-              <Button size="sm" onClick={() => setShowSizePanel(false)}>
+            <div className="mt-5 flex justify-stretch">
+              <Button
+                size="lg"
+                className="h-12 w-full text-base font-semibold"
+                onClick={() => setShowSizePanel(false)}
+              >
                 Done
               </Button>
             </div>
@@ -351,18 +642,18 @@ export function HskChecker({
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="unlearn-title" className="text-lg font-semibold tracking-tight">
-              Unlearn all words?
+              ลบสถานะทั้งหมด?
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              This clears all known / need-review marks for {listLabel}. You can&apos;t
-              undo this.
+              จะล้างเครื่องหมาย จำได้ / จำไม่ได้ ของ {listLabel} ทั้งหมด
+              ยกเลิกไม่ได้
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setConfirmUnlearn(false)}>
-                Cancel
+                ยกเลิก
               </Button>
               <Button variant="destructive" size="sm" onClick={unlearnAll}>
-                Unlearn all
+                ลบทั้งหมด
               </Button>
             </div>
           </div>
@@ -376,12 +667,17 @@ export function HskChecker({
           status={status}
           onToggle={toggleWord}
           onPick={(i) => setSwipeIndex(i)}
+          onHop={(i) => {
+            setSuperGrid(false);
+            setHopIndex(i);
+          }}
           showPinyin={showPinyin}
           showTranslation={showTranslation}
           showSound={showSound}
           superGrid={superGrid}
           columns={columns}
           pickMode={pickingStart}
+          highlightIndex={hopIndex}
         />
       </div>
 
@@ -415,7 +711,7 @@ export function HskChecker({
       )}
 
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl flex-nowrap items-center justify-center gap-1.5 overflow-x-auto px-3 py-3 sm:gap-3 sm:px-6">
+        <div className="mx-auto flex w-full max-w-5xl flex-nowrap items-center justify-center gap-1 overflow-x-auto px-2 py-3 sm:gap-3 sm:px-6">
           <button type="button" onClick={onBack} className={cn(navBtn, navBtnOff)}>
             <Menu className="size-5 shrink-0" />
             <span>เมนู</span>

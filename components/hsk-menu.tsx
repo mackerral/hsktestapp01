@@ -39,16 +39,18 @@ export function HskMenu({
   }, []);
 
   return (
-    <div className="flex min-h-dvh w-full items-center justify-center px-6 py-10">
-      <div className="w-full max-w-2xl">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">HSK Checker</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Pick a level to practice. Progress saves on this device.
+    <div className="flex h-full w-full flex-col justify-center overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="mx-auto w-full max-w-xl">
+        <div className="mb-4 text-center sm:mb-5">
+          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
+            HSK Checker
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground sm:text-sm">
+            Pick a level to practice
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
           {HSK_LISTS.map((list) => {
             const progress = getListProgress(
               wordsByList[list.id],
@@ -60,31 +62,31 @@ export function HskMenu({
                 key={list.id}
                 type="button"
                 onClick={() => onSelectList(list.id)}
-                className="group rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40"
+                className="group rounded-xl border border-border bg-background px-3 py-3 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:px-4 sm:py-3.5"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="text-lg font-semibold tracking-tight">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-base font-semibold tracking-tight sm:text-lg">
                       {list.label}
                     </div>
-                    <div className="mt-1 text-sm text-muted-foreground">
-                      {progress.known} / {progress.total} known
+                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground sm:text-xs">
+                      {progress.known}/{progress.total} จำได้
                       {progress.needReview > 0
-                        ? ` · ${progress.needReview} need review`
+                        ? ` · ${progress.needReview} จำไม่ได้`
                         : ""}
                     </div>
                   </div>
-                  <ChevronRight className="mt-1 size-5 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground" />
+                  <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:size-5" />
                 </div>
 
-                <div className="mt-4">
-                  <div className="mb-1.5 flex items-center justify-between text-xs text-muted-foreground">
+                <div className="mt-2.5">
+                  <div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground sm:text-[11px]">
                     <span>Progress</span>
                     <span className="font-medium text-foreground">
                       {progress.percent}%
                     </span>
                   </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-muted">
                     <div
                       className="h-full rounded-full bg-foreground transition-[width] duration-300"
                       style={{ width: `${progress.percent}%` }}

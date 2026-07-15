@@ -26,6 +26,36 @@ export function statusStorageKey(listId: ListId) {
   return `hsk-status:${listId}`;
 }
 
+/** Wipe all app localStorage (status + quiz settings). Called after version bump. */
+export function clearHskLocalStorage() {
+  if (typeof window === "undefined") return;
+  const toRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && (key.startsWith("hsk-") || key.startsWith("hsk"))) {
+      toRemove.push(key);
+    }
+  }
+  for (const key of toRemove) localStorage.removeItem(key);
+}
+
+const HSK_STORAGE_EPOCH = "hsk-storage-epoch";
+const HSK_STORAGE_EPOCH_VALUE = "2026-07-15-reset";
+
+/** One-shot: clear saved status/settings when epoch changes. */
+export function resetHskStorageIfNeeded() {
+  if (typeof window === "undefined") return;
+  try {
+    if (localStorage.getItem(HSK_STORAGE_EPOCH) === HSK_STORAGE_EPOCH_VALUE) {
+      return;
+    }
+    clearHskLocalStorage();
+    localStorage.setItem(HSK_STORAGE_EPOCH, HSK_STORAGE_EPOCH_VALUE);
+  } catch {
+    // ignore quota / private mode
+  }
+}
+
 export function loadStatus(listId: ListId): StatusMap {
   try {
     const saved = localStorage.getItem(statusStorageKey(listId));

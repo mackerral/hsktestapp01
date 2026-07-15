@@ -146,7 +146,7 @@ export function HskSwipeDeck({
             )}
             style={{ opacity: knownOpacity }}
           >
-            Known →
+            จำได้ →
           </div>
           <div
             className={cn(
@@ -155,7 +155,7 @@ export function HskSwipeDeck({
             )}
             style={{ opacity: learnOpacity }}
           >
-            ← Need learn
+            ← จำไม่ได้
           </div>
 
           <div
@@ -171,10 +171,10 @@ export function HskSwipeDeck({
               className="absolute top-4 left-4 flex items-center gap-2"
               aria-label={
                 status === "known"
-                  ? "Known"
+                  ? "จำได้"
                   : status === "unknown"
-                    ? "Need learn"
-                    : "Not marked"
+                    ? "จำไม่ได้"
+                    : "ยังไม่ได้กด"
               }
             >
               <span
@@ -183,7 +183,7 @@ export function HskSwipeDeck({
                   status === "known" && "size-3.5 ring-2 ring-emerald-600",
                   status !== "known" && "opacity-35",
                 )}
-                title="Known"
+                title="จำได้"
               />
               <span
                 className={cn(
@@ -191,7 +191,7 @@ export function HskSwipeDeck({
                   status === "unknown" && "size-3.5 ring-2 ring-rose-600",
                   status !== "unknown" && "opacity-35",
                 )}
-                title="Need learn"
+                title="จำไม่ได้"
               />
               <span
                 className={cn(
@@ -199,14 +199,14 @@ export function HskSwipeDeck({
                   status === "neutral" && "size-3.5 ring-2 ring-slate-500",
                   status !== "neutral" && "opacity-35",
                 )}
-                title="Not marked"
+                title="ยังไม่ได้กด"
               />
               <span className="ml-1 text-xs font-medium text-muted-foreground">
                 {status === "known"
-                  ? "Known"
+                  ? "จำได้"
                   : status === "unknown"
-                    ? "Need learn"
-                    : "New"}
+                    ? "จำไม่ได้"
+                    : "ยังไม่ได้กด"}
               </span>
             </div>
 
@@ -222,7 +222,7 @@ export function HskSwipeDeck({
               <span className="text-lg text-muted-foreground">{thai}</span>
             )}
             <p className="mt-6 text-xs text-muted-foreground">
-              Tap = sound · Swipe right = known · Swipe left = need learn
+              แตะ = เสียง · ปัดขวา = จำได้ · ปัดซ้าย = จำไม่ได้
             </p>
           </div>
         </div>
