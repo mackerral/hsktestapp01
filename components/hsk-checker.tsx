@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ALargeSmall,
+  Dices,
   Languages,
   Menu,
+  Pencil,
   Volume2,
   VolumeX,
 } from "lucide-react";
@@ -33,19 +35,39 @@ import {
 } from "@/components/quiz-menu";
 import {
   HSK_LISTS,
+  loadPencilMarks,
   loadStatus,
+  savePencilMarks,
   statusStorageKey,
   wordId,
   type HskWord,
   type ListId,
+  type PencilMap,
   type Status,
   type StatusMap,
 } from "@/lib/hsk-lists";
 
-type OrderMode = "default" | "needReview" | "random";
+type OrderMode =
+  | "default"
+  | "needReview"
+  | "known"
+  | "random"
+  | "randomUnknownFirst";
 
 function isOrderMode(value: unknown): value is OrderMode {
-  return value === "default" || value === "needReview" || value === "random";
+  return (
+    value === "default" ||
+    value === "needReview" ||
+    value === "known" ||
+    value === "random" ||
+    value === "randomUnknownFirst"
+  );
+}
+
+function isRandomOrderMode(
+  value: OrderMode,
+): value is "random" | "randomUnknownFirst" {
+  return value === "random" || value === "randomUnknownFirst";
 }
 
 function orderStorageKey(listId: ListId) {
@@ -82,18 +104,51 @@ const DEFAULT_TINY_STATUSES: QuizStatusFilter = {
   neutral: true,
 };
 
-function shuffledIndices(count: number, seed: number) {
-  const indices = Array.from({ length: count }, (_, i) => i);
+function makeSeededRand(seed: number) {
   let s = seed || 1;
-  const rand = () => {
+  return () => {
     s = (s * 9301 + 49297) % 233280;
     return s / 233280;
   };
+}
+
+function shuffleWithRand(indices: number[], rand: () => number) {
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(rand() * (i + 1));
     [indices[i], indices[j]] = [indices[j], indices[i]];
   }
   return indices;
+}
+
+function shuffledIndices(count: number, seed: number) {
+  return shuffleWithRand(
+    Array.from({ length: count }, (_, i) => i),
+    makeSeededRand(seed),
+  );
+}
+
+/** Shuffle within status buckets; unknown first, then unmarked, then known. */
+function shuffledUnknownFirst(
+  count: number,
+  seed: number,
+  ids: string[],
+  status: StatusMap,
+) {
+  const unknown: number[] = [];
+  const neutral: number[] = [];
+  const known: number[] = [];
+  for (let i = 0; i < count; i++) {
+    const s = status[ids[i]];
+    if (s === "unknown") unknown.push(i);
+    else if (s === "known") known.push(i);
+    else neutral.push(i);
+  }
+  const rand = makeSeededRand(seed);
+  return [
+    ...shuffleWithRand(unknown, rand),
+    ...shuffleWithRand(neutral, rand),
+    ...shuffleWithRand(known, rand),
+  ];
 }
 
 export function HskChecker({
@@ -122,6 +177,9 @@ export function HskChecker({
   const [showPinyin, setShowPinyin] = useState(true);
   const [showTranslation, setShowTranslation] = useState(true);
   const [showSound, setShowSound] = useState(true);
+  const [pencilMode, setPencilMode] = useState(false);
+  const [pencilInfoOpen, setPencilInfoOpen] = useState(false);
+  const [pencilMarks, setPencilMarks] = useState<PencilMap>({});
   const [superGrid, setSuperGrid] = useState(false);
   const [columns, setColumns] = useState(4);
   const [swipeMode, setSwipeMode] = useState(false);
@@ -136,9 +194,13 @@ export function HskChecker({
     ...DEFAULT_TINY_STATUSES,
   });
   const [tinyCount, setTinyCount] = useState<number | "all">(10);
+  const [tinyHideChoicesFirst, setTinyHideChoicesFirst] = useState(false);
 
   useEffect(() => {
     setStatus(loadStatus(listId));
+    setPencilMarks(loadPencilMarks(listId));
+    setPencilMode(false);
+    setPencilInfoOpen(false);
     const pref = loadOrderPreference(listId);
     setOrderMode(pref.mode);
     setShuffleSeed(pref.seed);
@@ -153,10 +215,11 @@ export function HskChecker({
   }
 
   function reshuffle() {
-    setOrderMode("random");
+    const mode = isRandomOrderMode(orderMode) ? orderMode : "random";
+    setOrderMode(mode);
     setShuffleSeed((s) => {
       const next = s + 1;
-      saveOrderPreference(listId, "random", next);
+      saveOrderPreference(listId, mode, next);
       return next;
     });
   }
@@ -184,29 +247,66 @@ export function HskChecker({
   const knownCount = ids.filter((id) => status[id] === "known").length;
 
   const [needReviewOrder, setNeedReviewOrder] = useState<number[]>([]);
+  const [knownOrder, setKnownOrder] = useState<number[]>([]);
+  const [randomUnknownOrder, setRandomUnknownOrder] = useState<number[]>([]);
   useEffect(() => {
-    if (orderMode !== "needReview") return;
-    const rank = (i: number) => {
-      const s = status[ids[i]];
-      if (s === "unknown") return 0;
-      if (!s) return 1;
-      return 2;
-    };
-    setNeedReviewOrder(
-      words.map((_, i) => i).sort((a, b) => rank(a) - rank(b) || a - b),
-    );
+    if (orderMode !== "needReview" && orderMode !== "known") return;
+    const rank =
+      orderMode === "needReview"
+        ? (i: number) => {
+            const s = status[ids[i]];
+            if (s === "unknown") return 0;
+            if (!s) return 1;
+            return 2;
+          }
+        : (i: number) => {
+            const s = status[ids[i]];
+            if (s === "known") return 0;
+            if (!s) return 1;
+            return 2;
+          };
+    const next = words
+      .map((_, i) => i)
+      .sort((a, b) => rank(a) - rank(b) || a - b);
+    if (orderMode === "needReview") setNeedReviewOrder(next);
+    else setKnownOrder(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- freeze against status toggles
   }, [orderMode, listId, words, ids]);
 
+  useEffect(() => {
+    if (orderMode !== "randomUnknownFirst") return;
+    setRandomUnknownOrder(
+      shuffledUnknownFirst(words.length, shuffleSeed, ids, status),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- freeze against status toggles; reshuffle via seed
+  }, [orderMode, listId, words, ids, shuffleSeed]);
+
   const order = useMemo(() => {
     if (orderMode === "random") return shuffledIndices(words.length, shuffleSeed);
+    if (orderMode === "randomUnknownFirst") {
+      return randomUnknownOrder.length === words.length
+        ? randomUnknownOrder
+        : words.map((_, i) => i);
+    }
     if (orderMode === "needReview") {
       return needReviewOrder.length === words.length
         ? needReviewOrder
         : words.map((_, i) => i);
     }
+    if (orderMode === "known") {
+      return knownOrder.length === words.length
+        ? knownOrder
+        : words.map((_, i) => i);
+    }
     return words.map((_, i) => i);
-  }, [words, orderMode, shuffleSeed, needReviewOrder]);
+  }, [
+    words,
+    orderMode,
+    shuffleSeed,
+    needReviewOrder,
+    knownOrder,
+    randomUnknownOrder,
+  ]);
 
   const orderedWords = useMemo(() => order.map((i) => words[i]), [order, words]);
   const orderedIds = useMemo(() => order.map((i) => ids[i]), [order, ids]);
@@ -217,6 +317,16 @@ export function HskChecker({
       const next: Status = current === "known" ? "unknown" : "known";
       const updated = { ...prev, [id]: next };
       localStorage.setItem(statusStorageKey(listId), JSON.stringify(updated));
+      return updated;
+    });
+  }
+
+  function togglePencilMark(id: string) {
+    setPencilMarks((prev) => {
+      const updated = { ...prev };
+      if (updated[id]) delete updated[id];
+      else updated[id] = true;
+      savePencilMarks(listId, updated);
       return updated;
     });
   }
@@ -248,10 +358,13 @@ export function HskChecker({
 
   const navBtn =
     "inline-flex h-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-sm font-medium transition-colors sm:h-11 sm:gap-2 sm:px-4 [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5";
-
+  const navIconBtn =
+    "inline-flex size-11 shrink-0 touch-manipulation items-center justify-center rounded-lg border transition-colors [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5";
   const navBtnOff = "border-border bg-background text-foreground hover:bg-muted";
   const navBtnOn =
     "border-sky-300 bg-sky-100 text-sky-800 hover:bg-sky-200 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-200";
+  const pencilBtnOn =
+    "border-orange-300 bg-orange-100 text-orange-800 hover:bg-orange-200 dark:border-orange-700 dark:bg-orange-950 dark:text-orange-200";
   const gridBtnOn =
     "border-foreground bg-foreground text-background hover:bg-foreground/90";
 
@@ -262,6 +375,7 @@ export function HskChecker({
     levels: [listId],
     choiceCount: 4,
     statuses: tinyStatuses,
+    hideChoicesFirst: tinyHideChoicesFirst,
   };
   const tinyPoolCount = countQuizPool(wordsByList, tinySettings);
   const tinyMax = Math.max(1, Math.min(50, tinyPoolCount));
@@ -298,12 +412,14 @@ export function HskChecker({
                 levels: [listId],
                 choiceCount: 4,
                 statuses,
+                hideChoicesFirst: tinyHideChoicesFirst,
               }),
             ),
       lastRandomCount: typeof tinyCount === "number" ? tinyCount : 10,
       levels: [listId],
       choiceCount: 4,
       statuses,
+      hideChoicesFirst: tinyHideChoicesFirst,
     };
     const label =
       QUIZ_MODES.find((m) => m.id === tinyMode)?.label ?? tinyMode;
@@ -331,7 +447,11 @@ export function HskChecker({
               type="button"
               aria-pressed={superGrid}
               aria-label="ภาพรวม"
-              onClick={() => setSuperGrid((v) => !v)}
+              onClick={() => {
+                setSuperGrid((v) => !v);
+                setPencilMode(false);
+                setPencilInfoOpen(false);
+              }}
               className={cn(
                 "inline-flex h-11 touch-manipulation items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors sm:h-12 sm:text-base [-webkit-tap-highlight-color:transparent]",
                 superGrid ? gridBtnOn : navBtnOff,
@@ -361,7 +481,7 @@ export function HskChecker({
                   </Button>
                 }
               />
-              <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuContent align="end" className="w-60">
                 <DropdownMenuGroup>
                   <DropdownMenuLabel>จัดเรียง</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
@@ -369,16 +489,47 @@ export function HskChecker({
                     onValueChange={(value) => changeOrderMode(value as OrderMode)}
                   >
                     <DropdownMenuRadioItem value="default">
-                      ตามลำดับเดิม
+                      ตามลำดับเดิม (A-Z)
                     </DropdownMenuRadioItem>
                     <DropdownMenuRadioItem value="needReview">
-                      ตามคำที่จำไม่ได้
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full bg-rose-500"
+                          aria-hidden
+                        />
+                        ตามคำที่จำไม่ได้
+                      </span>
                     </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="random">สุ่ม</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="known">
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="size-2.5 shrink-0 rounded-full bg-emerald-500"
+                          aria-hidden
+                        />
+                        ตามคำที่จำได้
+                      </span>
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="random">
+                      <span className="flex items-center gap-2">
+                        <Dices className="size-3.5 shrink-0" aria-hidden />
+                        สุ่มทั้งหมด
+                      </span>
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="randomUnknownFirst">
+                      <span className="flex items-center gap-2">
+                        <Dices className="size-3.5 shrink-0" aria-hidden />
+                        <span
+                          className="size-2.5 shrink-0 rounded-full bg-rose-500"
+                          aria-hidden
+                        />
+                        สุ่มจำไม่ได้ขึ้นก่อน
+                      </span>
+                    </DropdownMenuRadioItem>
                   </DropdownMenuRadioGroup>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={reshuffle}>
+                  <Dices className="size-4" aria-hidden />
                   สุ่มใหม่
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -411,6 +562,30 @@ export function HskChecker({
         {pickingStart && (
           <div className="border-t border-sky-200 bg-sky-50 px-6 py-4 text-center text-base font-semibold text-sky-900 sm:text-lg dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
             เลือกคำที่ต้องการเริ่ม swipe ;)
+          </div>
+        )}
+        {pencilMode && !pickingStart && (
+          <div className="border-t border-orange-200 bg-orange-50 px-4 py-2.5 text-orange-900 sm:px-6 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-100">
+            <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm font-medium sm:text-base">
+              <span>กำลังใช้ mode ดินสอ</span>
+              <button
+                type="button"
+                aria-expanded={pencilInfoOpen}
+                onClick={() => setPencilInfoOpen((v) => !v)}
+                className="rounded-full border border-orange-300/80 bg-orange-100/80 px-2.5 py-0.5 text-xs font-semibold text-orange-800 hover:bg-orange-200/80 dark:border-orange-700 dark:bg-orange-900/60 dark:text-orange-100 dark:hover:bg-orange-900"
+              >
+                สำหรับแบบฝึกหัด {pencilInfoOpen ? "▴" : "▾"}
+              </button>
+            </div>
+            {pencilInfoOpen && (
+              <div className="mx-auto mt-2 max-w-lg rounded-lg border border-orange-200/80 bg-white/70 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-orange-950 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-50 sm:text-sm">
+                <p>กดการ์ดเพื่อติด icon (มุมบนขวา)</p>
+                <p className="mt-1.5">
+                  คำที่มาร์คดินสอ สามารถกรองได้ใน แจกไฟล์ → แบบฝึกกำหนดเอง
+                  เพื่อสร้าง PDF เฉพาะคำที่เลือกไว้
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -517,6 +692,27 @@ export function HskChecker({
                   </>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => setTinyHideChoicesFirst((v) => !v)}
+                className={cn(
+                  "mt-5 flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm",
+                  tinyHideChoicesFirst
+                    ? "border-foreground bg-accent/50"
+                    : "border-border hover:bg-muted",
+                )}
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">ซ่อน choice ก่อน</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    แสดงคำถามก่อน แล้วแตะเพื่อเปิดตัวเลือก
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {tinyHideChoicesFirst ? "เปิด" : "ปิด"}
+                </span>
+              </button>
 
               <div className="mt-5">
                 <div className="mb-2 text-sm font-medium">เลือกศัพท์</div>
@@ -713,7 +909,10 @@ export function HskChecker({
           words={orderedWords}
           ids={orderedIds}
           status={status}
+          pencilMarks={pencilMarks}
+          pencilMode={pencilMode}
           onToggle={toggleWord}
+          onPencilToggle={togglePencilMark}
           onPick={(i) => setSwipeIndex(i)}
           onHop={(i) => {
             setSuperGrid(false);
@@ -790,14 +989,30 @@ export function HskChecker({
             aria-pressed={showSound}
             aria-label="เสียง"
             onClick={() => setShowSound((v) => !v)}
-            className={cn(navBtn, showSound ? navBtnOn : navBtnOff)}
+            className={cn(navIconBtn, showSound ? navBtnOn : navBtnOff)}
           >
             {showSound ? (
               <Volume2 className="size-5 shrink-0" />
             ) : (
               <VolumeX className="size-5 shrink-0 opacity-70" />
             )}
-            <span>เสียง</span>
+          </button>
+          <button
+            type="button"
+            aria-pressed={pencilMode}
+            aria-label="mode ดินสอ สำหรับแบบฝึกหัด"
+            title="mode ดินสอ · สำหรับแบบฝึกหัด"
+            onClick={() => {
+              setPencilMode((v) => {
+                const next = !v;
+                if (next) setPencilInfoOpen(true);
+                else setPencilInfoOpen(false);
+                return next;
+              });
+            }}
+            className={cn(navIconBtn, pencilMode ? pencilBtnOn : navBtnOff)}
+          >
+            <Pencil className="size-5 shrink-0" />
           </button>
         </div>
       </div>

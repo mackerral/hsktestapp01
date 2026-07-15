@@ -141,6 +141,9 @@ export function QuizSession({
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
   const [soundOn, setSoundOn] = useState(true);
+  const [choicesVisible, setChoicesVisible] = useState(
+    !settings.hideChoicesFirst,
+  );
 
   useEffect(() => {
     if (!window.speechSynthesis) return;
@@ -168,9 +171,10 @@ export function QuizSession({
 
   function pick(choice: QuizChoice) {
     if (selected) return;
-    if (soundOn) speak(choice.chinese);
     setSelected(choice.text);
     if (choice.text === q.answer) setScore((s) => s + 1);
+    // Always pronounce the correct word, never the tapped wrong choice.
+    if (soundOn) speak(q.chinese);
   }
 
   function next() {
@@ -180,6 +184,7 @@ export function QuizSession({
     }
     setIndex((i) => i + 1);
     setSelected(null);
+    setChoicesVisible(!settings.hideChoicesFirst);
   }
 
   if (done) {
@@ -200,6 +205,7 @@ export function QuizSession({
               setSelected(null);
               setScore(0);
               setDone(false);
+              setChoicesVisible(!settings.hideChoicesFirst);
               setRound((r) => r + 1);
             }}
           >
@@ -259,35 +265,49 @@ export function QuizSession({
         <div className="text-4xl font-bold leading-tight sm:text-5xl">{q.prompt}</div>
       </div>
 
-      <div
-        className={cn(
-          "mt-6 grid gap-2",
-          q.choices.length >= 6 ? "grid-cols-2" : "grid-cols-1",
-        )}
-      >
-        {q.choices.map((choice) => {
-          const isAnswer = choice.text === q.answer;
-          const isPick = choice.text === selected;
-          return (
-            <button
-              key={choice.text}
-              type="button"
-              disabled={answered}
-              onClick={() => pick(choice)}
-              className={cn(
-                "rounded-xl border-2 px-3 py-3 text-base font-medium transition-colors sm:px-4",
-                q.choices.length >= 6 ? "text-center" : "text-left",
-                !answered && "hover:bg-muted",
-                answered && isAnswer && "border-emerald-500 bg-emerald-50 text-emerald-900",
-                answered && isPick && !isAnswer && "border-rose-500 bg-rose-50 text-rose-900",
-                answered && !isAnswer && !isPick && "opacity-50",
-              )}
-            >
-              {choice.text}
-            </button>
-          );
-        })}
-      </div>
+      {!choicesVisible ? (
+        <Button
+          className="mt-6 h-14 w-full text-base font-semibold"
+          onClick={() => setChoicesVisible(true)}
+        >
+          แตะเพื่อดูตัวเลือก
+        </Button>
+      ) : (
+        <div
+          className={cn(
+            "mt-6 grid gap-2",
+            q.choices.length >= 6 ? "grid-cols-2" : "grid-cols-1",
+          )}
+        >
+          {q.choices.map((choice) => {
+            const isAnswer = choice.text === q.answer;
+            const isPick = choice.text === selected;
+            return (
+              <button
+                key={choice.text}
+                type="button"
+                disabled={answered}
+                onClick={() => pick(choice)}
+                className={cn(
+                  "rounded-xl border-2 px-3 py-3 text-base font-medium transition-colors sm:px-4",
+                  q.choices.length >= 6 ? "text-center" : "text-left",
+                  !answered && "hover:bg-muted",
+                  answered &&
+                    isAnswer &&
+                    "border-emerald-500 bg-emerald-50 text-emerald-900",
+                  answered &&
+                    isPick &&
+                    !isAnswer &&
+                    "border-rose-500 bg-rose-50 text-rose-900",
+                  answered && !isAnswer && !isPick && "opacity-50",
+                )}
+              >
+                {choice.text}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {answered && (
         <Button className="mt-4 h-12 w-full text-base font-semibold" onClick={next}>

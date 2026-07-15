@@ -31,6 +31,8 @@ export type QuizSettings = {
   levels: ListId[] | "mix";
   choiceCount: number;
   statuses: QuizStatusFilter;
+  /** Hide answer choices until the learner taps to reveal them */
+  hideChoicesFirst: boolean;
 };
 
 export const QUIZ_MODES: { id: QuizModeId; label: string }[] = [
@@ -58,6 +60,7 @@ function defaultSettings(mode: QuizModeId = "zh-th"): QuizSettings {
     levels: ALL_LEVELS,
     choiceCount: 4,
     statuses: { known: true, unknown: true, neutral: true },
+    hideChoicesFirst: false,
   };
 }
 
@@ -84,6 +87,9 @@ function loadSettings(id: QuizSetId, defaultMode: QuizModeId): QuizSettings {
         typeof parsed.questionCount === "number"
           ? parsed.questionCount
           : fallback.lastRandomCount;
+    }
+    if (typeof parsed.hideChoicesFirst !== "boolean") {
+      parsed.hideChoicesFirst = fallback.hideChoicesFirst;
     }
     return {
       ...parsed,
@@ -244,6 +250,11 @@ export function QuizMenu({
                     <span className="rounded-md bg-muted px-2 py-0.5">
                       {s.choiceCount} ตัวเลือก
                     </span>
+                    {s.hideChoicesFirst && (
+                      <span className="rounded-md bg-muted px-2 py-0.5">
+                        ซ่อน choice ก่อน
+                      </span>
+                    )}
                     <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5">
                       {(
                         [
@@ -499,6 +510,32 @@ export function QuizMenu({
                   ))}
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setDraft((d) => ({
+                    ...d,
+                    hideChoicesFirst: !d.hideChoicesFirst,
+                  }))
+                }
+                className={cn(
+                  "mt-5 flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left text-sm",
+                  draft.hideChoicesFirst
+                    ? "border-foreground bg-accent/50"
+                    : "border-border hover:bg-muted",
+                )}
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">ซ่อน choice ก่อน</span>
+                  <span className="mt-0.5 block text-xs text-muted-foreground">
+                    แสดงคำถามก่อน แล้วแตะเพื่อเปิดตัวเลือก
+                  </span>
+                </span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {draft.hideChoicesFirst ? "เปิด" : "ปิด"}
+                </span>
+              </button>
 
               <div className="mt-5">
                 <div className="mb-2 text-sm font-medium">เลือกศัพท์</div>

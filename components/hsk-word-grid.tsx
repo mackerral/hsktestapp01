@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
@@ -20,7 +21,10 @@ export function HskWordGrid({
   words,
   ids,
   status,
+  pencilMarks = {},
+  pencilMode = false,
   onToggle,
+  onPencilToggle,
   onPick,
   onHop,
   showPinyin,
@@ -34,7 +38,10 @@ export function HskWordGrid({
   words: HskWord[];
   ids: string[];
   status: StatusMap;
+  pencilMarks?: Record<string, true>;
+  pencilMode?: boolean;
   onToggle: (id: string) => void;
+  onPencilToggle?: (id: string) => void;
   onPick?: (index: number) => void;
   onHop?: (index: number) => void;
   showPinyin: boolean;
@@ -111,6 +118,7 @@ export function HskWordGrid({
       {words.map((word, i) => {
         const id = ids[i];
         const current: Status | "neutral" = status[id] ?? "neutral";
+        const hasPencil = Boolean(pencilMarks[id]);
 
         const handleClick = () => {
           if (pickMode && onPick) {
@@ -119,6 +127,11 @@ export function HskWordGrid({
           }
           if (superGrid && onHop) {
             onHop(i);
+            return;
+          }
+          if (pencilMode && onPencilToggle) {
+            onPencilToggle(id);
+            if (showSound) speak(word.chinese);
             return;
           }
           onToggle(id);
@@ -133,11 +146,18 @@ export function HskWordGrid({
               title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
               onClick={handleClick}
               className={cn(
-                "flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border [-webkit-tap-highlight-color:transparent]",
+                "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border [-webkit-tap-highlight-color:transparent]",
                 statusStyles[current],
                 pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
+                pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
               )}
             >
+              {hasPencil && (
+                <Pencil
+                  className="absolute top-0.5 right-0.5 size-2.5 text-orange-600 dark:text-orange-300"
+                  aria-hidden
+                />
+              )}
               <span className="block w-full truncate whitespace-nowrap px-0.5 text-center text-[9px] font-medium leading-none">
                 {word.chinese}
               </span>
@@ -152,13 +172,22 @@ export function HskWordGrid({
             data-word-index={i}
             onClick={handleClick}
             className={cn(
-              "flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent] scroll-mt-36 scroll-mb-28",
+              "relative flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent] scroll-mt-36 scroll-mb-28",
               type.card,
               statusStyles[current],
               pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
+              pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-300",
               highlightIndex === i && "ring-2 ring-sky-500 ring-offset-2",
             )}
           >
+            {hasPencil && (
+              <span
+                className="absolute top-1.5 right-1.5 inline-flex size-5 items-center justify-center rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
+                aria-label="ดินสอ"
+              >
+                <Pencil className="size-3" aria-hidden />
+              </span>
+            )}
             <span className={type.zh}>{word.chinese}</span>
             {showPinyin && <span className={type.py}>{word.pinyin}</span>}
             {showTranslation && <span className={type.th}>{word.thai}</span>}

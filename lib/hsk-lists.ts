@@ -26,6 +26,31 @@ export function statusStorageKey(listId: ListId) {
   return `hsk-status:${listId}`;
 }
 
+export function pencilStorageKey(listId: ListId) {
+  return `hsk-pencil:${listId}`;
+}
+
+export type PencilMap = Record<string, true>;
+
+export function loadPencilMarks(listId: ListId): PencilMap {
+  try {
+    const raw = localStorage.getItem(pencilStorageKey(listId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const next: PencilMap = {};
+    for (const [id, value] of Object.entries(parsed)) {
+      if (value) next[id] = true;
+    }
+    return next;
+  } catch {
+    return {};
+  }
+}
+
+export function savePencilMarks(listId: ListId, marks: PencilMap) {
+  localStorage.setItem(pencilStorageKey(listId), JSON.stringify(marks));
+}
+
 /** Wipe all app localStorage (status + quiz settings). Called after version bump. */
 export function clearHskLocalStorage() {
   if (typeof window === "undefined") return;

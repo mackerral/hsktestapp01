@@ -162,7 +162,7 @@ export function HskApp({
             onSelectLevel={setActiveSentenceLevel}
           />
         )}
-        {page === 4 && <HskFilesView />}
+        {page === 4 && <HskFilesView wordsByList={wordsByList} />}
       </div>
 
       <footer className="sticky bottom-0 z-[70] shrink-0 border-t border-border/60 bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
