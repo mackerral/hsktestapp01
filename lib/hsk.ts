@@ -1,5 +1,6 @@
 import { readFile } from "fs/promises";
 import path from "path";
+import { cache } from "react";
 
 export type { HskWord } from "@/lib/hsk-lists";
 import type { HskWord } from "@/lib/hsk-lists";
@@ -18,7 +19,7 @@ async function parseHskFile(filename: string): Promise<HskWord[]> {
   });
 }
 
-export async function getHskWords() {
+export const getHskWords = cache(async () => {
   const [hsk1, hsk2, hsk3, hsk4, hsk5, hsk6] = await Promise.all([
     parseHskFile("HSK1_Thai.txt"),
     parseHskFile("HSK2_Thai.txt"),
@@ -28,4 +29,5 @@ export async function getHskWords() {
     parseHskFile("HSK6_Thai.txt"),
   ]);
   return { hsk1, hsk2, hsk3, hsk4, hsk5, hsk6 };
-}
+});
+

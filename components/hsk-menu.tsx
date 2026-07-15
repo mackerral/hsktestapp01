@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import {
   getListProgress,
@@ -14,8 +13,10 @@ import {
 
 export function HskMenu({
   wordsByList,
+  onSelectList,
 }: {
   wordsByList: Record<ListId, HskWord[]>;
+  onSelectList: (listId: ListId) => void;
 }) {
   const [statusByList, setStatusByList] = useState<Record<ListId, StatusMap>>({
     hsk1: {},
@@ -55,10 +56,11 @@ export function HskMenu({
             );
 
             return (
-              <Link
+              <button
                 key={list.id}
-                href={`/hsk/${list.id}`}
-                className="group rounded-xl border border-border bg-background p-5 transition-colors hover:border-foreground/30 hover:bg-accent/40"
+                type="button"
+                onClick={() => onSelectList(list.id)}
+                className="group rounded-xl border border-border bg-background p-5 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -89,7 +91,7 @@ export function HskMenu({
                     />
                   </div>
                 </div>
-              </Link>
+              </button>
             );
           })}
         </div>

@@ -1,8 +1,11 @@
 import { getHskWords } from "@/lib/hsk";
-import { HskMenu } from "@/components/hsk-menu";
+import { HskApp } from "@/components/hsk-app";
 
-export default async function HskMenuPage() {
+// Prerender once at build — no per-visit server function cost.
+export const dynamic = "force-static";
+export const revalidate = false;
+
+export default async function HskPage() {
   const words = await getHskWords();
-
-  return <HskMenu wordsByList={words} />;
+  return <HskApp wordsByList={words} />;
 }

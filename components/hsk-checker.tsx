@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import {
   ALargeSmall,
   Languages,
@@ -55,9 +54,11 @@ function shuffledIndices(count: number, seed: number) {
 export function HskChecker({
   listId,
   words,
+  onBack,
 }: {
   listId: ListId;
   words: HskWord[];
+  onBack: () => void;
 }) {
   const listLabel = HSK_LISTS.find((l) => l.id === listId)?.label ?? listId;
 
@@ -218,10 +219,14 @@ export function HskChecker({
 
       <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-center gap-2.5 px-4 py-3 sm:gap-3 sm:px-6">
-          <Link href="/hsk" className={cn(navBtn, navBtnOff)}>
+          <button
+            type="button"
+            onClick={onBack}
+            className={cn(navBtn, navBtnOff)}
+          >
             <Menu className="size-5" />
             <span>เมนู</span>
-          </Link>
+          </button>
           <div className="mx-0.5 h-8 w-px bg-border sm:mx-1" />
           <button
             type="button"
