@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
 
 type Status = "known" | "unknown";
@@ -14,41 +15,6 @@ const statusStyles: Record<Status | "neutral", string> = {
   unknown:
     "bg-rose-50 border-rose-400 text-rose-900 dark:bg-rose-950 dark:border-rose-600 dark:text-rose-100 shadow-sm",
 };
-
-/** Same approach as jamdai.com: device Web Speech API only. */
-let cachedVoices: SpeechSynthesisVoice[] = [];
-
-function loadVoices() {
-  if (typeof window === "undefined" || !window.speechSynthesis) return;
-  cachedVoices = window.speechSynthesis.getVoices();
-}
-
-function pickChineseVoice(): SpeechSynthesisVoice | null {
-  if (!cachedVoices.length) loadVoices();
-  return (
-    cachedVoices.find((v) => v.lang.toLowerCase().startsWith("zh")) ?? null
-  );
-}
-
-function speak(text: string) {
-  if (typeof window === "undefined" || !window.speechSynthesis || !text) return;
-
-  try {
-    const synth = window.speechSynthesis;
-    synth.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = "zh-CN";
-    utterance.rate = 0.85;
-
-    const voice = pickChineseVoice();
-    if (voice) utterance.voice = voice;
-
-    synth.speak(utterance);
-  } catch {
-    // ignore — same as jamdai
-  }
-}
 
 export function HskWordGrid({
   words,

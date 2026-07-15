@@ -168,9 +168,9 @@ export function HskChecker({
   return (
     <div>
       <div className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-6 py-3">
+        <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-3.5 sm:px-6 sm:py-4">
           <div>
-            <div className="text-sm font-semibold tracking-tight">{listLabel}</div>
+            <div className="text-base font-semibold tracking-tight sm:text-lg">{listLabel}</div>
             <div className="text-xs text-muted-foreground sm:text-sm">
               {words.length} total · {knownCount} known · {reviewCount} need review
             </div>
@@ -183,11 +183,11 @@ export function HskChecker({
               aria-label="ภาพรวม"
               onClick={() => setSuperGrid((v) => !v)}
               className={cn(
-                "inline-flex h-8 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-colors [-webkit-tap-highlight-color:transparent]",
+                "inline-flex h-10 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:h-11 sm:px-3.5 [-webkit-tap-highlight-color:transparent]",
                 superGrid ? gridBtnOn : navBtnOff,
               )}
             >
-              <LayoutGrid className="size-4" />
+              <LayoutGrid className="size-5" />
               <span>ภาพรวม</span>
             </button>
             <button
@@ -195,18 +195,18 @@ export function HskChecker({
               aria-label="Size and swipe settings"
               onClick={() => setShowSizePanel(true)}
               className={cn(
-                "inline-flex h-8 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-2.5 text-sm font-medium transition-colors [-webkit-tap-highlight-color:transparent]",
+                "inline-flex h-10 touch-manipulation items-center justify-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors sm:h-11 sm:px-3.5 [-webkit-tap-highlight-color:transparent]",
                 showSizePanel || swipeMode ? gridBtnOn : navBtnOff,
               )}
             >
-              <Scaling className="size-4" />
+              <Scaling className="size-5" />
               <span>ขนาด</span>
             </button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button variant="outline" size="sm">
-                    <Settings className="size-4" />
+                  <Button variant="outline" size="default" className="h-10 gap-1.5 px-3 sm:h-11 sm:px-3.5">
+                    <Settings className="size-5" />
                     จัดเรียง/ลบ
                   </Button>
                 }
@@ -247,6 +247,11 @@ export function HskChecker({
             </DropdownMenu>
           </div>
         </div>
+        {pickingStart && (
+          <div className="border-t border-sky-200 bg-sky-50 px-6 py-4 text-center text-base font-semibold text-sky-900 sm:text-lg dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
+            เลือกคำที่ต้องการเริ่ม swipe ;)
+          </div>
+        )}
       </div>
 
       {showSizePanel && (
@@ -301,7 +306,12 @@ export function HskChecker({
                 onClick={() => {
                   setSwipeMode((v) => {
                     const next = !v;
-                    if (!next) setSwipeIndex(null);
+                    if (!next) {
+                      setSwipeIndex(null);
+                    } else {
+                      setSwipeIndex(null);
+                      setShowSizePanel(false);
+                    }
                     return next;
                   });
                 }}
@@ -359,12 +369,6 @@ export function HskChecker({
         </div>
       )}
 
-      {pickingStart && (
-        <div className="border-b border-sky-200 bg-sky-50 px-6 py-3 text-center text-sm font-medium text-sky-900 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-100">
-          Choose a word you want to start
-        </div>
-      )}
-
       <div className="mx-auto w-full max-w-5xl px-6 py-6 pb-40">
         <HskWordGrid
           words={orderedWords}
@@ -391,6 +395,10 @@ export function HskChecker({
           total={orderedWords.length}
           showPinyin={showPinyin}
           showTranslation={showTranslation}
+          showSound={showSound}
+          onShowPinyinChange={setShowPinyin}
+          onShowTranslationChange={setShowTranslation}
+          onShowSoundChange={setShowSound}
           onKnown={() => {
             setWordStatus(orderedIds[swipeIndex], "known");
             advanceSwipe();
