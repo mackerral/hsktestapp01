@@ -192,8 +192,8 @@ export function QuizMenu({
   }
 
   return (
-    <div className="flex h-full w-full flex-col justify-center overflow-y-auto px-4 py-4 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl">
+    <div className="h-full w-full overflow-y-auto overscroll-contain">
+      <div className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-4 py-6 sm:px-6">
         <div className="mb-4 text-center sm:mb-5">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             Quiz รวม
@@ -203,39 +203,38 @@ export function QuizMenu({
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
           {QUIZ_SETS.map((set) => {
             const s = settingsBySet[set.id];
             const poolCount = countQuizPool(wordsByList, s);
-            const levelLabel =
-              s.levels === "mix"
-                ? "HSK 1–6"
-                : s.levels.length === HSK_LISTS.length
-                  ? "HSK 1–6"
-                  : s.levels.map((id) => id.replace("hsk", "")).join(",");
+            const levelIds =
+              s.levels === "mix" ? HSK_LISTS.map((l) => l.id) : [...s.levels];
+            const levelLabel = HSK_LISTS.filter((l) => levelIds.includes(l.id))
+              .map((l) => l.label)
+              .join(", ");
 
             return (
               <div
                 key={set.id}
-                className="flex flex-col rounded-xl border border-border bg-background p-3 sm:p-4"
+                className="flex flex-col rounded-xl border border-border bg-background p-4 sm:p-5"
               >
                 <div className="min-w-0 flex-1">
                   <div className="text-xs font-medium text-muted-foreground">
                     {set.title}
                   </div>
-                  <div className="mt-0.5 text-sm font-semibold leading-snug tracking-tight sm:text-base">
+                  <div className="mt-0.5 text-base font-semibold leading-snug tracking-tight sm:text-lg">
                     {modeLabel(s.mode)}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground sm:text-[11px]">
-                    <span className="rounded-md bg-muted px-1.5 py-0.5">
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <span className="rounded-md bg-muted px-2 py-0.5">
                       {s.questionCount === "all"
                         ? `ทั้งหมด · ${poolCount}`
                         : `สุ่ม · ${s.questionCount}`}
                     </span>
-                    <span className="rounded-md bg-muted px-1.5 py-0.5">
+                    <span className="rounded-md bg-muted px-2 py-0.5">
                       {s.choiceCount} ตัวเลือก
                     </span>
-                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-1.5 py-0.5">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5">
                       {(
                         [
                           {
@@ -260,26 +259,26 @@ export function QuizMenu({
                           <span
                             key={dot.label}
                             title={dot.label}
-                            className={cn("size-2 rounded-full", dot.className)}
+                            className={cn("size-2.5 rounded-full", dot.className)}
                           />
                         ))}
                     </span>
-                    <span className="rounded-md bg-muted px-1.5 py-0.5">
+                    <span className="rounded-md bg-muted px-2 py-0.5">
                       {levelLabel}
                     </span>
                   </div>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-1.5">
+                <div className="mt-3 grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     aria-label={`ตั้งค่า ${set.title}`}
                     onClick={() => openSettings(set.id)}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-border text-xs font-medium hover:bg-muted sm:text-sm"
+                    className="inline-flex h-10 items-center justify-center rounded-lg border border-border text-sm font-medium hover:bg-muted"
                   >
                     ตั้งค่า
                   </button>
                   <Button
-                    className="h-9 text-xs font-semibold sm:text-sm"
+                    className="h-10 font-semibold"
                     onClick={() =>
                       onStart(
                         s.mode,

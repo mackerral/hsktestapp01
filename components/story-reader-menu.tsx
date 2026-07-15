@@ -6,8 +6,8 @@ const STORY_LEVELS = [0, 1, 2, 3, 4];
 
 export function StoryReaderMenu() {
   return (
-    <div className="flex h-full w-full items-center justify-center overflow-y-auto px-6 py-6">
-      <div className="w-full max-w-2xl">
+    <div className="h-full w-full overflow-y-auto overscroll-contain">
+      <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col justify-center px-6 py-6">
         <div className="mb-8 text-center">
           <h1 className="text-2xl font-semibold tracking-tight">Story Reader</h1>
           <p className="mt-1 text-sm text-muted-foreground">

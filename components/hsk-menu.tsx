@@ -39,8 +39,8 @@ export function HskMenu({
   }, []);
 
   return (
-    <div className="flex h-full w-full flex-col justify-center overflow-y-auto px-4 py-4 sm:px-6">
-      <div className="mx-auto w-full max-w-xl">
+    <div className="h-full w-full overflow-y-auto overscroll-contain">
+      <div className="mx-auto flex min-h-full w-full max-w-xl flex-col justify-center px-4 py-6 sm:px-6">
         <div className="mb-4 text-center sm:mb-5">
           <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">
             HSK Checker

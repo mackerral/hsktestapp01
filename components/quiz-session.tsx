@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { loadVoices, speak } from "@/lib/speak";
 import {
   HSK_LISTS,
   loadStatus,
@@ -14,6 +16,7 @@ import {
 import type { QuizModeId, QuizSettings } from "@/components/quiz-menu";
 
 type QuizItem = {
+  chinese: string;
   prompt: string;
   answer: string;
   choices: string[];
@@ -96,6 +99,7 @@ function buildQuiz(
     }
     const choiceTarget = Math.min(settings.choiceCount, wrongs.length + 1);
     return {
+      chinese: word.chinese,
       prompt: promptOf(word),
       answer,
       choices: shuffle([answer, ...wrongs.slice(0, choiceTarget - 1)]),
@@ -126,6 +130,15 @@ export function QuizSession({
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    if (!window.speechSynthesis) return;
+    loadVoices();
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    return () => {
+      window.speechSynthesis.onvoiceschanged = null;
+    };
+  }, []);
 
   if (questions.length === 0) {
     return (
@@ -186,17 +199,27 @@ export function QuizSession({
   }
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 pb-8 pt-4">
-      <div className="flex items-center justify-between gap-3">
+    <div className="mx-auto flex h-dvh w-full max-w-lg flex-col overflow-y-auto px-4 pb-8 pt-4">
+      <div className="flex shrink-0 items-center justify-between gap-3">
         <button
           type="button"
           onClick={onExit}
-          className="rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+          className="rounded-lg border border-border px-4 py-2.5 text-base font-semibold hover:bg-muted"
         >
           ออก
         </button>
-        <div className="text-sm text-muted-foreground">
-          {index + 1} / {questions.length}
+        <div className="flex items-center gap-2">
+          <div className="text-sm text-muted-foreground">
+            {index + 1} / {questions.length}
+          </div>
+          <button
+            type="button"
+            aria-label="เล่นเสียงจีน"
+            onClick={() => speak(q.chinese)}
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-border hover:bg-muted"
+          >
+            <Volume2 className="size-5" />
+          </button>
         </div>
       </div>
 
@@ -210,7 +233,7 @@ export function QuizSession({
       <p className="mt-4 text-center text-xs font-medium text-muted-foreground">
         {title}
       </p>
-      <div className="mt-6 flex flex-1 flex-col items-center justify-center text-center">
+      <div className="mt-6 flex flex-col items-center justify-center py-6 text-center sm:flex-1 sm:py-0">
         <div className="text-4xl font-bold leading-tight sm:text-5xl">{q.prompt}</div>
       </div>
 
