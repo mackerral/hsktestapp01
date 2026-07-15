@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Volume2 } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { loadVoices, speak } from "@/lib/speak";
@@ -15,11 +15,16 @@ import {
 } from "@/lib/hsk-lists";
 import type { QuizModeId, QuizSettings } from "@/components/quiz-menu";
 
+type QuizChoice = {
+  text: string;
+  chinese: string;
+};
+
 type QuizItem = {
   chinese: string;
   prompt: string;
   answer: string;
-  choices: string[];
+  choices: QuizChoice[];
 };
 
 function shuffle<T>(arr: T[]): T[] {
@@ -91,10 +96,12 @@ function buildQuiz(
     const wrongPool = shuffle(
       pool.filter((w) => uniqueKey(w) !== uniqueKey(word)),
     );
-    const wrongs: string[] = [];
+    const wrongs: QuizChoice[] = [];
     for (const w of wrongPool) {
       const a = answerOf(w);
-      if (a !== answer && !wrongs.includes(a)) wrongs.push(a);
+      if (a !== answer && !wrongs.some((x) => x.text === a)) {
+        wrongs.push({ text: a, chinese: w.chinese });
+      }
       if (wrongs.length >= settings.choiceCount - 1) break;
     }
     const choiceTarget = Math.min(settings.choiceCount, wrongs.length + 1);
@@ -102,7 +109,10 @@ function buildQuiz(
       chinese: word.chinese,
       prompt: promptOf(word),
       answer,
-      choices: shuffle([answer, ...wrongs.slice(0, choiceTarget - 1)]),
+      choices: shuffle([
+        { text: answer, chinese: word.chinese },
+        ...wrongs.slice(0, choiceTarget - 1),
+      ]),
     };
   });
 }
@@ -130,6 +140,7 @@ export function QuizSession({
   const [selected, setSelected] = useState<string | null>(null);
   const [score, setScore] = useState(0);
   const [done, setDone] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
 
   useEffect(() => {
     if (!window.speechSynthesis) return;
@@ -155,10 +166,11 @@ export function QuizSession({
   const q = questions[index];
   const answered = selected !== null;
 
-  function pick(choice: string) {
+  function pick(choice: QuizChoice) {
     if (selected) return;
-    setSelected(choice);
-    if (choice === q.answer) setScore((s) => s + 1);
+    if (soundOn) speak(choice.chinese);
+    setSelected(choice.text);
+    if (choice.text === q.answer) setScore((s) => s + 1);
   }
 
   function next() {
@@ -214,11 +226,21 @@ export function QuizSession({
           </div>
           <button
             type="button"
-            aria-label="เล่นเสียงจีน"
-            onClick={() => speak(q.chinese)}
-            className="inline-flex size-10 items-center justify-center rounded-lg border border-border hover:bg-muted"
+            aria-pressed={soundOn}
+            aria-label={soundOn ? "ปิดเสียง" : "เปิดเสียง"}
+            onClick={() => setSoundOn((v) => !v)}
+            className={cn(
+              "inline-flex size-10 items-center justify-center rounded-lg border transition-colors",
+              soundOn
+                ? "border-sky-300 bg-sky-100 text-sky-800 hover:bg-sky-200"
+                : "border-border text-muted-foreground hover:bg-muted",
+            )}
           >
-            <Volume2 className="size-5" />
+            {soundOn ? (
+              <Volume2 className="size-5" />
+            ) : (
+              <VolumeX className="size-5" />
+            )}
           </button>
         </div>
       </div>
@@ -244,11 +266,11 @@ export function QuizSession({
         )}
       >
         {q.choices.map((choice) => {
-          const isAnswer = choice === q.answer;
-          const isPick = choice === selected;
+          const isAnswer = choice.text === q.answer;
+          const isPick = choice.text === selected;
           return (
             <button
-              key={choice}
+              key={choice.text}
               type="button"
               disabled={answered}
               onClick={() => pick(choice)}
@@ -261,7 +283,7 @@ export function QuizSession({
                 answered && !isAnswer && !isPick && "opacity-50",
               )}
             >
-              {choice}
+              {choice.text}
             </button>
           );
         })}

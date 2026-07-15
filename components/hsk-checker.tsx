@@ -44,6 +44,38 @@ import {
 
 type OrderMode = "default" | "needReview" | "random";
 
+function isOrderMode(value: unknown): value is OrderMode {
+  return value === "default" || value === "needReview" || value === "random";
+}
+
+function orderStorageKey(listId: ListId) {
+  return `hsk-order:${listId}`;
+}
+
+function loadOrderPreference(listId: ListId): {
+  mode: OrderMode;
+  seed: number;
+} {
+  try {
+    const raw = localStorage.getItem(orderStorageKey(listId));
+    if (!raw) return { mode: "default", seed: 1 };
+    const parsed = JSON.parse(raw) as { mode?: unknown; seed?: unknown };
+    return {
+      mode: isOrderMode(parsed.mode) ? parsed.mode : "default",
+      seed: typeof parsed.seed === "number" && parsed.seed > 0 ? parsed.seed : 1,
+    };
+  } catch {
+    return { mode: "default", seed: 1 };
+  }
+}
+
+function saveOrderPreference(listId: ListId, mode: OrderMode, seed: number) {
+  localStorage.setItem(
+    orderStorageKey(listId),
+    JSON.stringify({ mode, seed }),
+  );
+}
+
 const DEFAULT_TINY_STATUSES: QuizStatusFilter = {
   known: true,
   unknown: true,
@@ -107,10 +139,27 @@ export function HskChecker({
 
   useEffect(() => {
     setStatus(loadStatus(listId));
+    const pref = loadOrderPreference(listId);
+    setOrderMode(pref.mode);
+    setShuffleSeed(pref.seed);
     setSwipeMode(false);
     setSwipeIndex(null);
     setHopIndex(null);
   }, [listId]);
+
+  function changeOrderMode(mode: OrderMode) {
+    setOrderMode(mode);
+    saveOrderPreference(listId, mode, shuffleSeed);
+  }
+
+  function reshuffle() {
+    setOrderMode("random");
+    setShuffleSeed((s) => {
+      const next = s + 1;
+      saveOrderPreference(listId, "random", next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (hopIndex == null || superGrid) return;
@@ -209,6 +258,7 @@ export function HskChecker({
   const tinySettings: QuizSettings = {
     mode: tinyMode,
     questionCount: tinyCount,
+    lastRandomCount: typeof tinyCount === "number" ? tinyCount : 10,
     levels: [listId],
     choiceCount: 4,
     statuses: tinyStatuses,
@@ -243,11 +293,14 @@ export function HskChecker({
               countQuizPool(wordsByList, {
                 mode: tinyMode,
                 questionCount: tinyCount,
+                lastRandomCount:
+                  typeof tinyCount === "number" ? tinyCount : 10,
                 levels: [listId],
                 choiceCount: 4,
                 statuses,
               }),
             ),
+      lastRandomCount: typeof tinyCount === "number" ? tinyCount : 10,
       levels: [listId],
       choiceCount: 4,
       statuses,
@@ -313,7 +366,7 @@ export function HskChecker({
                   <DropdownMenuLabel>จัดเรียง</DropdownMenuLabel>
                   <DropdownMenuRadioGroup
                     value={orderMode}
-                    onValueChange={(value) => setOrderMode(value as OrderMode)}
+                    onValueChange={(value) => changeOrderMode(value as OrderMode)}
                   >
                     <DropdownMenuRadioItem value="default">
                       ตามลำดับเดิม
@@ -325,12 +378,7 @@ export function HskChecker({
                   </DropdownMenuRadioGroup>
                 </DropdownMenuGroup>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    setOrderMode("random");
-                    setShuffleSeed((s) => s + 1);
-                  }}
-                >
+                <DropdownMenuItem onClick={reshuffle}>
                   สุ่มใหม่
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />

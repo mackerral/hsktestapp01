@@ -26,6 +26,8 @@ export type QuizStatusFilter = {
 export type QuizSettings = {
   mode: QuizModeId;
   questionCount: number | "all";
+  /** Remembered when toggling back from ทั้งหมด → สุ่ม */
+  lastRandomCount: number;
   levels: ListId[] | "mix";
   choiceCount: number;
   statuses: QuizStatusFilter;
@@ -52,6 +54,7 @@ function defaultSettings(mode: QuizModeId = "zh-th"): QuizSettings {
   return {
     mode,
     questionCount: 10,
+    lastRandomCount: 10,
     levels: ALL_LEVELS,
     choiceCount: 4,
     statuses: { known: true, unknown: true, neutral: true },
@@ -75,6 +78,12 @@ function loadSettings(id: QuizSetId, defaultMode: QuizModeId): QuizSettings {
     if (!isQuizModeId(parsed.mode)) parsed.mode = defaultMode;
     if (parsed.questionCount !== "all" && typeof parsed.questionCount !== "number") {
       parsed.questionCount = fallback.questionCount;
+    }
+    if (typeof parsed.lastRandomCount !== "number") {
+      parsed.lastRandomCount =
+        typeof parsed.questionCount === "number"
+          ? parsed.questionCount
+          : fallback.lastRandomCount;
     }
     return {
       ...parsed,
@@ -185,6 +194,7 @@ export function QuizMenu({
     if (typeof next.questionCount === "number") {
       const pool = countQuizPool(wordsByList, next);
       next.questionCount = clampRandomCount(next.questionCount, pool);
+      next.lastRandomCount = next.questionCount;
     }
     setSettingsBySet((prev) => ({ ...prev, [editing]: next }));
     saveSettings(editing, next);
@@ -349,11 +359,15 @@ export function QuizMenu({
                     onClick={() =>
                       setDraft((d) => {
                         const pool = countQuizPool(wordsByList, d);
-                        const current =
-                          typeof d.questionCount === "number" ? d.questionCount : 10;
+                        const remembered =
+                          typeof d.questionCount === "number"
+                            ? d.questionCount
+                            : d.lastRandomCount;
+                        const count = clampRandomCount(remembered, pool);
                         return {
                           ...d,
-                          questionCount: clampRandomCount(current, pool),
+                          questionCount: count,
+                          lastRandomCount: count,
                         };
                       })
                     }
@@ -368,7 +382,16 @@ export function QuizMenu({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setDraft((d) => ({ ...d, questionCount: "all" }))}
+                    onClick={() =>
+                      setDraft((d) => ({
+                        ...d,
+                        lastRandomCount:
+                          typeof d.questionCount === "number"
+                            ? d.questionCount
+                            : d.lastRandomCount,
+                        questionCount: "all",
+                      }))
+                    }
                     className={cn(
                       "rounded-lg border px-3 py-2 text-sm font-medium",
                       draft.questionCount === "all"
@@ -390,13 +413,17 @@ export function QuizMenu({
                       step={1}
                       value={randomValue}
                       onChange={(e) =>
-                        setDraft((d) => ({
-                          ...d,
-                          questionCount: clampRandomCount(
+                        setDraft((d) => {
+                          const count = clampRandomCount(
                             Number(e.target.value),
                             draftPoolCount,
-                          ),
-                        }))
+                          );
+                          return {
+                            ...d,
+                            questionCount: count,
+                            lastRandomCount: count,
+                          };
+                        })
                       }
                       className="w-full accent-foreground"
                     />
