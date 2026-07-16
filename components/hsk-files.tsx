@@ -45,7 +45,7 @@ export function HskFilesView({
             className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
           >
             <div className="text-lg font-semibold tracking-tight sm:text-xl">
-              HSK Words Visualized
+              HSK 3.0 1-6 Words SuperMap
             </div>
             <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
               HSK 1–6 ทั้งชุดในหน้าเดียว · สีตามระดับ · สุ่มได้

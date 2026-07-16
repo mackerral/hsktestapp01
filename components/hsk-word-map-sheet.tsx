@@ -32,7 +32,10 @@ type MapItem = {
 
 /**
  * Layout:
- *   1 on 2 on 3 · 4 beside 123 · 5 under 1234 · 6 beside 4+5
+ *   [1 | 4……]  4 beside 1, more columns
+ *   [2 | 5   ]
+ *   [3 | 5   ]  5 beside 2+3
+ *   [6………...]  6 under everything
  */
 const PAGE_W = 3200;
 const PAD = 10;
@@ -65,13 +68,112 @@ function shuffleSeeded<T>(items: T[], seed: number): T[] {
   return a;
 }
 
-/** Uniform cells → balance columns by word count. */
-function wordMass(items: MapItem[]) {
-  return items.length || 1;
+/** Uniform 1–2 char = 1 cell; 3+ char = 2 cells (single-line). */
+function cellSpan(chinese: string) {
+  return Array.from(chinese).length >= 3 ? 2 : 1;
 }
 
-function rowsFor(count: number, cols: number) {
-  return Math.ceil(Math.max(1, count) / Math.max(1, cols));
+function rowSpanSum(row: MapItem[], cols: number) {
+  const c = Math.max(1, cols);
+  return row.reduce((s, it) => s + Math.min(cellSpan(it.chinese), c), 0);
+}
+
+/** Pack items into rows using 1- or 2-cell spans. */
+function packRows(items: MapItem[], cols: number): MapItem[][] {
+  const c = Math.max(1, cols);
+  const rows: MapItem[][] = [];
+  let row: MapItem[] = [];
+  let used = 0;
+  for (const item of items) {
+    const span = Math.min(cellSpan(item.chinese), c);
+    if (used > 0 && used + span > c) {
+      rows.push(row);
+      row = [];
+      used = 0;
+    }
+    row.push(item);
+    used += span;
+    if (used >= c) {
+      rows.push(row);
+      row = [];
+      used = 0;
+    }
+  }
+  if (row.length) rows.push(row);
+  return rows.length ? rows : [[]];
+}
+
+/** Split items into exactly n rows by mass (rows stretch to full width). */
+function packIntoNRows(items: MapItem[], cols: number, nRows: number): MapItem[][] {
+  if (!items.length) return [[]];
+  const n = Math.max(1, Math.min(nRows, items.length));
+  if (n === 1) return [items];
+
+  const c = Math.max(1, cols);
+  const masses = items.map((it) => Math.min(cellSpan(it.chinese), c));
+  const total = masses.reduce((a, b) => a + b, 0) || 1;
+  const target = total / n;
+
+  const rows: MapItem[][] = Array.from({ length: n }, () => []);
+  let rowIdx = 0;
+  let massInRow = 0;
+
+  for (let i = 0; i < items.length; i++) {
+    const remainingItems = items.length - i;
+    const remainingRows = n - rowIdx;
+
+    if (rowIdx < n - 1 && rows[rowIdx]!.length > 0) {
+      // Keep one item for each remaining row (including current).
+      if (remainingItems < remainingRows) {
+        // shouldn't happen
+      } else if (remainingItems === remainingRows) {
+        rowIdx += 1;
+        massInRow = 0;
+      } else if (massInRow >= target) {
+        rowIdx += 1;
+        massInRow = 0;
+      }
+    }
+
+    rows[rowIdx]!.push(items[i]!);
+    massInRow += masses[i]!;
+  }
+
+  return rows.filter((r) => r.length > 0);
+}
+
+/**
+ * Avoid a lonely last row (1–2 leftover cells stretched alone).
+ * Absorb sparse leftovers into fewer full-width rows.
+ */
+function packRowsNoLonely(items: MapItem[], cols: number): MapItem[][] {
+  let rows = packRows(items, cols);
+  const c = Math.max(1, cols);
+  const lonelyThreshold = Math.max(2, Math.floor(c * 0.35));
+
+  while (rows.length >= 2) {
+    const last = rows[rows.length - 1]!;
+    const lastMass = rowSpanSum(last, c);
+    const lonely = last.length <= 2 || lastMass <= lonelyThreshold;
+    if (!lonely) break;
+    const next = packIntoNRows(items, c, rows.length - 1);
+    if (next.length >= rows.length) break;
+    rows = next;
+  }
+  return rows;
+}
+
+function rowsForItems(items: MapItem[], cols: number) {
+  return Math.max(1, packRowsNoLonely(items, cols).length);
+}
+
+function emptyUnitsInLastRow(items: MapItem[], cols: number) {
+  const rows = packRowsNoLonely(items, cols);
+  const last = rows[rows.length - 1] ?? [];
+  const used = rowSpanSum(last, cols);
+  const c = Math.max(1, cols);
+  // After no-lonely pack, last row is usually full; report leftover if any.
+  return used === 0 || used >= c ? 0 : c - used;
 }
 
 /** 3×5 pixel digits — painted onto existing word cells (no reserved slots). */
@@ -122,73 +224,91 @@ const DIGIT_PIXELS: Record<number, number[][]> = {
   ],
 };
 
-/** Same as rowsFor — digit is painted on words, not extra cells. */
-function rowsForLevel(count: number, cols: number) {
-  return rowsFor(count, cols);
+function rowsForLevel(items: MapItem[], cols: number) {
+  return rowsForItems(items, cols);
 }
 
-function emptyInLastRow(count: number, cols: number) {
-  if (count <= 0 || cols <= 0) return 0;
-  const rem = count % cols;
-  return rem === 0 ? 0 : cols - rem;
+function emptyInLastRow(items: MapItem[], cols: number) {
+  return emptyUnitsInLastRow(items, cols);
 }
 
 type ColLayout = {
   totalCols: number;
-  cols123: number;
+  /** Shared left rail width for HSK 1, 2, 3. */
+  colsL: number;
+  /** Right of 1 — same width as cols5 (no side gap). */
   cols4: number;
-  colsLeft: number;
+  /** Right of 2+3. */
+  cols5: number;
+  /** Full width under everything. */
   cols6: number;
 };
 
-/** Pick column split (÷5) so section heights match — no white holes. */
+/**
+ * Pick colsL + colsR so:
+ *   rows(4) ≈ rows(1), rows(5) ≈ rows(2)+rows(3)
+ * Same colsR for 4 and 5 → no empty strip beside them.
+ * Adjusts 1/2/3 column count until 4/5 fit cleanly.
+ */
 function pickColLayout(
-  m1: number,
-  m2: number,
-  m3: number,
-  m4: number,
-  m5: number,
-  m6: number,
+  items1: MapItem[],
+  items2: MapItem[],
+  items3: MapItem[],
+  items4: MapItem[],
+  items5: MapItem[],
+  items6: MapItem[],
 ): ColLayout {
   const COL_STEP = 5;
   const maxFit = Math.floor((PAGE_W - PAD * 2) / CELL);
-  const totalCols = Math.max(20, Math.floor(maxFit / COL_STEP) * COL_STEP);
+  const pageCols = Math.max(30, Math.floor(maxFit / COL_STEP) * COL_STEP);
 
   let best: ColLayout = {
-    totalCols,
-    cols123: 10,
-    cols4: 10,
-    colsLeft: 20,
-    cols6: totalCols - 20,
+    totalCols: pageCols,
+    colsL: 10,
+    cols4: pageCols - 10,
+    cols5: pageCols - 10,
+    cols6: pageCols,
   };
   let bestScore = Number.POSITIVE_INFINITY;
 
-  for (let cols6 = COL_STEP; cols6 <= totalCols - 10; cols6 += COL_STEP) {
-    const colsLeft = totalCols - cols6;
-    for (
-      let cols123 = COL_STEP;
-      cols123 <= colsLeft - COL_STEP;
-      cols123 += COL_STEP
-    ) {
-      const cols4 = colsLeft - cols123;
-      const h123 =
-        rowsForLevel(m1, cols123) +
-        rowsForLevel(m2, cols123) +
-        rowsForLevel(m3, cols123);
-      const h4 = rowsForLevel(m4, cols4);
-      const topGap = Math.abs(h123 - h4);
-      const hTop = Math.max(h123, h4);
-      const h5 = rowsForLevel(m5, colsLeft);
-      const hLeft = hTop + h5;
-      const h6 = rowsForLevel(m6, cols6);
-      const sideGap = Math.abs(hLeft - h6);
+  // Try many left widths — adjust 1/2/3 cols until 4/5 row counts match.
+  for (let colsL = COL_STEP; colsL <= pageCols - COL_STEP; colsL += COL_STEP) {
+    const h1 = rowsForLevel(items1, colsL);
+    const h23 =
+      rowsForLevel(items2, colsL) + rowsForLevel(items3, colsL);
 
-      // Height match is everything — giant middle white comes from gaps here.
-      const score = topGap * 100 + sideGap * 80 + emptyInLastRow(m4, cols4) * 0.01;
+    for (
+      let colsR = COL_STEP;
+      colsR <= pageCols - colsL;
+      colsR += COL_STEP
+    ) {
+      const h4 = rowsForLevel(items4, colsR);
+      const h5 = rowsForLevel(items5, colsR);
+      const topGap = Math.abs(h1 - h4);
+      const midGap = Math.abs(h23 - h5);
+
+      const totalCols = colsL + colsR;
+      const empty4 = emptyInLastRow(items4, colsR);
+      const empty5 = emptyInLastRow(items5, colsR);
+
+      // Primary: match rows by tuning 1/2/3 cols. Then cut leftover empty cells.
+      const score =
+        topGap * 1000 +
+        midGap * 1000 +
+        empty4 * 3 +
+        empty5 * 3 +
+        colsL * 0.4 -
+        colsR * 0.15;
 
       if (score < bestScore) {
         bestScore = score;
-        best = { totalCols, cols123, cols4, colsLeft, cols6 };
+        best = {
+          totalCols,
+          colsL,
+          cols4: colsR,
+          cols5: colsR,
+          cols6: totalCols,
+        };
       }
     }
   }
@@ -201,27 +321,31 @@ function LevelBlock({
   items,
   cols,
   height,
+  stretch = true,
 }: {
   listId: ListId;
   items: MapItem[];
   cols: number;
   /** Exact pixel height to fill — row heights grow to match (no white). */
   height: number;
+  /** When false, keep square CELL row height (width still fills — no empty cells). */
+  stretch?: boolean;
 }) {
   const width = cols * CELL;
   const levelNum = Number(listId.replace("hsk", "")) || 1;
   const pattern = DIGIT_PIXELS[levelNum] ?? DIGIT_PIXELS[1];
-  const rowCount = Math.max(1, rowsFor(items.length, cols));
-  const rowHeight = height / rowCount;
+  // Absorb sparse last rows so we never leave blank padded cells.
+  const packed = packRowsNoLonely(items, cols);
+  const rowCount = Math.max(1, packed.length);
+  const rowHeight = stretch ? height / rowCount : CELL;
 
   const tone = LEVEL_COLORS[listId];
   const line =
     tone.ink === "#ffffff" ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)";
 
-  // Center the 3×5 digit over the filled word grid.
-  const usedRows = rowCount;
-  const digitOriginCol = Math.max(0, Math.floor((cols - DIGIT_W) / 2));
-  const digitOriginRow = Math.max(0, Math.floor((usedRows - DIGIT_H) / 2));
+  // White digit near top-left (col 1, row 1).
+  const digitOriginCol = 1;
+  const digitOriginRow = 1;
 
   function isDigitPixel(col: number, row: number) {
     const dr = row - digitOriginRow;
@@ -230,97 +354,83 @@ function LevelBlock({
     return pattern[dr]?.[dc] === 1;
   }
 
-  const rem = items.length % cols;
-  const fullCount = rem === 0 ? items.length : items.length - rem;
-  const fullItems = items.slice(0, fullCount);
-  const lastItems = items.slice(fullCount);
-  const fullRows = Math.floor(fullCount / cols);
-  const lastCellW = lastItems.length > 0 ? width / lastItems.length : CELL;
-
   return (
     <div
       style={{
         boxSizing: "border-box",
         width,
+        // Always fill allocated height — leftover uses level color (no white donut).
         height,
-        backgroundColor: "transparent",
+        backgroundColor: tone.bg,
         overflow: "hidden",
+        alignSelf: stretch ? undefined : "flex-start",
       }}
       title={LEVEL_COLORS[listId].label}
     >
-      {fullItems.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: `repeat(${cols}, ${CELL}px)`,
-            gridTemplateRows: `repeat(${fullRows}, ${rowHeight}px)`,
-          }}
-        >
-          {fullItems.map((item, i) => {
-            const row = Math.floor(i / cols);
-            const col = i % cols;
-            const digit = isDigitPixel(col, row);
-            return (
-              <div
-                key={`${listId}-${item.chinese}-${i}`}
-                style={{
-                  boxSizing: "border-box",
-                  width: CELL,
-                  height: rowHeight,
-                  borderRight: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
-                  borderBottom: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
-                  backgroundColor: digit ? "#ffffff" : tone.bg,
-                  overflow: "hidden",
-                }}
-                title={`${tone.label} · ${item.chinese}`}
-              >
-                <WordGlyphs
-                  chinese={item.chinese}
-                  color={digit ? "#000000" : tone.ink}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {lastItems.length > 0 && (
-        <div style={{ display: "flex", width, height: rowHeight }}>
-          {lastItems.map((item, i) => {
-            const row = fullRows;
-            // Stretched last row: map to approx column for digit hit-test.
-            const col = Math.min(
-              cols - 1,
-              Math.floor(((i + 0.5) * cols) / lastItems.length),
-            );
-            const digit = isDigitPixel(col, row);
-            const chars = Array.from(item.chinese).length;
-            const singleLine =
-              lastCellW >= Math.max(CELL, chars * 14 + 8);
-            return (
-              <div
-                key={`${listId}-${item.chinese}-last-${i}`}
-                style={{
-                  boxSizing: "border-box",
-                  flex: "1 1 0",
-                  minWidth: 0,
-                  height: rowHeight,
-                  borderRight: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
-                  borderBottom: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
-                  backgroundColor: digit ? "#ffffff" : tone.bg,
-                  overflow: "hidden",
-                }}
-                title={`${tone.label} · ${item.chinese}`}
-              >
-                <WordGlyphs
-                  chinese={item.chinese}
-                  color={digit ? "#000000" : tone.ink}
-                  singleLine={singleLine}
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {packed.map((rowItems, rowIdx) => {
+        const spans = rowItems.map((it) =>
+          Math.min(cellSpan(it.chinese), cols),
+        );
+        const spanSum = spans.reduce((a, b) => a + b, 0) || 1;
+        // Always stretch across the row — never render empty pad cells.
+        const unitW = width / spanSum;
+
+        let colCursor = 0;
+        return (
+          <div
+            key={`${listId}-row-${rowIdx}`}
+            style={{
+              display: "flex",
+              width,
+              height: rowHeight,
+            }}
+          >
+            {rowItems.map((item, i) => {
+              const span = spans[i]!;
+              const cellW = unitW * span;
+              const col = Math.min(
+                cols - 1,
+                Math.floor(((colCursor + span * 0.5) * cols) / spanSum),
+              );
+              colCursor += span;
+              const digit = isDigitPixel(col, rowIdx);
+              const n = Array.from(item.chinese).length;
+              const singleLine = n >= 3 || cellW >= Math.max(CELL, n * 14 + 8);
+              return (
+                <div
+                  data-map-cell
+                  key={`${listId}-${item.chinese}-${rowIdx}-${i}`}
+                  style={{
+                    boxSizing: "border-box",
+                    position: "relative",
+                    width: cellW,
+                    flexShrink: 0,
+                    height: rowHeight,
+                    borderRight: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
+                    borderBottom: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
+                    backgroundColor: digit ? "#ffffff" : tone.bg,
+                    overflow: "hidden",
+                    clipPath: "inset(0)",
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "center",
+                    paddingTop: 2,
+                  }}
+                  title={`${tone.label} · ${item.chinese}`}
+                >
+                  <WordGlyphs
+                    chinese={item.chinese}
+                    color={digit ? "#000000" : tone.ink}
+                    singleLine={singleLine}
+                    cellW={cellW}
+                    cellH={rowHeight}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -329,177 +439,146 @@ function WordGlyphs({
   chinese,
   color,
   singleLine = false,
+  cellW = CELL,
+  cellH = CELL,
 }: {
   chinese: string;
   color: string;
   singleLine?: boolean;
+  cellW?: number;
+  cellH?: number;
 }) {
   const chars = Array.from(chinese);
   const n = chars.length;
-  const fontSize = n <= 1 ? 15 : n === 2 ? 13 : n === 3 ? 12 : 11;
+  const w = Math.max(1, cellW);
+  const h = Math.max(1, cellH);
+  const fontFamily =
+    '"Microsoft YaHei", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
 
-  // Stretched cell with enough width → all characters on one horizontal line.
-  if (singleLine) {
+  // 3+ char always single-line in a wide (2-cell) box.
+  const useLine = singleLine || n >= 3;
+
+  if (useLine) {
+    const byWidth = Math.floor((w - 4) / Math.max(n, 1));
+    // 3-char: compact but +1 vs prior; 4+: also compact. Both sit slightly toward the top.
+    const heightFactor = n === 3 ? 0.48 : n >= 4 ? 0.55 : 0.72;
+    const maxSize = n === 3 ? 12 : n >= 4 ? 12 : 16;
+    const byHeight = Math.floor(h * heightFactor);
+    let lineSize = Math.max(8, Math.min(maxSize, byWidth, byHeight));
+    if (n === 3) lineSize = Math.min(maxSize, lineSize + 1);
+    const topPad = n >= 3 ? 1 : 2;
     return (
       <div
+        data-map-glyphs={n}
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          boxSizing: "border-box",
           width: "100%",
           height: "100%",
+          overflow: "hidden",
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "center",
+          paddingTop: topPad,
+          textAlign: "center",
           whiteSpace: "nowrap",
-          fontSize: n <= 2 ? 14 : 13,
+          fontSize: lineSize,
           fontWeight: 600,
           lineHeight: 1,
           color,
+          fontFamily,
           letterSpacing: 0,
         }}
       >
-        {chinese}
+        <span
+          data-map-glyph
+          style={{
+            display: "block",
+            fontSize: lineSize,
+            fontWeight: 600,
+            color,
+            fontFamily,
+            lineHeight: 1,
+            textAlign: "center",
+          }}
+        >
+          {chinese}
+        </span>
       </div>
     );
   }
 
-  const glyph = (ch: string, key: number) => (
-    <span
+  const place = (
+    ch: string,
+    key: number,
+    leftPct: string,
+    topPct: string,
+    widthPct: string,
+    heightPct: string,
+    fontSize: number,
+  ) => (
+    <div
       key={key}
+      data-map-glyph
       style={{
+        boxSizing: "border-box",
+        position: "absolute",
+        left: leftPct,
+        top: topPct,
+        width: widthPct,
+        height: heightPct,
+        overflow: "hidden",
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
-        width: "100%",
-        height: "100%",
+        paddingTop: 2,
+        textAlign: "center",
         fontSize,
         fontWeight: 600,
         lineHeight: 1,
         color,
+        fontFamily,
       }}
     >
       {ch}
-    </span>
+    </div>
   );
 
-  // 1 char → centered
   if (n <= 1) {
+    // Fixed to CELL so stretched rows (e.g. HSK 3) match other levels.
+    const fontSize = Math.max(10, Math.floor(CELL * 0.4));
     return (
       <div
+        data-map-glyphs={n}
         style={{
+          position: "relative",
+          width: "100%",
+          height: "100%",
+          overflow: "hidden",
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "center",
-          width: "100%",
-          height: "100%",
+          paddingTop: 2,
         }}
       >
-        {glyph(chars[0] ?? "", 0)}
+        {place(chars[0] ?? "", 0, "0%", "0%", "100%", "100%", fontSize)}
       </div>
     );
   }
 
-  // 2 char → 2 columns
-  if (n === 2) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        {glyph(chars[0], 0)}
-        {glyph(chars[1], 1)}
-      </div>
-    );
-  }
-
-  // 3 char → 2 on top, 3rd on new row centered
-  if (n === 3) {
-    return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gridTemplateRows: "1fr 1fr",
-          width: "100%",
-          height: "100%",
-        }}
-      >
-        {glyph(chars[0], 0)}
-        {glyph(chars[1], 1)}
-        <div
-          style={{
-            gridColumn: "1 / -1",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "50%",
-              height: "100%",
-              fontSize,
-              fontWeight: 600,
-              lineHeight: 1,
-              color,
-            }}
-          >
-            {chars[2]}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // 4 char → 2 columns × 2 rows; longer words keep 2-col wrap
+  // 2 char → side by side; size from CELL so it stays consistent across levels
+  const fontSize = Math.max(10, Math.floor((CELL / 2) * 0.78));
   return (
     <div
+      data-map-glyphs={n}
       style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gridTemplateRows: `repeat(${Math.ceil(n / 2)}, 1fr)`,
+        position: "relative",
         width: "100%",
         height: "100%",
+        overflow: "hidden",
       }}
     >
-      {chars.map((ch, i) => {
-        const isLastOdd = n % 2 === 1 && i === n - 1;
-        if (isLastOdd) {
-          return (
-            <div
-              key={i}
-              style={{
-                gridColumn: "1 / -1",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <span
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "50%",
-                  height: "100%",
-                  fontSize,
-                  fontWeight: 600,
-                  lineHeight: 1,
-                  color,
-                }}
-              >
-                {ch}
-              </span>
-            </div>
-          );
-        }
-        return glyph(ch, i);
-      })}
+      {place(chars[0], 0, "0%", "0%", "50%", "100%", fontSize)}
+      {place(chars[1], 1, "50%", "0%", "50%", "100%", fontSize)}
     </div>
   );
 }
@@ -511,48 +590,38 @@ function VisualizedPage({
   byLevel: Record<ListId, MapItem[]>;
   shuffled: boolean;
 }) {
-  const m1 = wordMass(byLevel.hsk1);
-  const m2 = wordMass(byLevel.hsk2);
-  const m3 = wordMass(byLevel.hsk3);
-  const m4 = wordMass(byLevel.hsk4);
-  const m5 = wordMass(byLevel.hsk5);
-  const m6 = wordMass(byLevel.hsk6);
-
-  const { totalCols, cols123, cols4, colsLeft, cols6 } = pickColLayout(
-    m1,
-    m2,
-    m3,
-    m4,
-    m5,
-    m6,
+  const { totalCols, colsL, cols4, cols5, cols6 } = pickColLayout(
+    byLevel.hsk1,
+    byLevel.hsk2,
+    byLevel.hsk3,
+    byLevel.hsk4,
+    byLevel.hsk5,
+    byLevel.hsk6,
   );
 
-  const r1 = rowsForLevel(m1, cols123);
-  const r2 = rowsForLevel(m2, cols123);
-  const r3 = rowsForLevel(m3, cols123);
-  const r123 = r1 + r2 + r3;
-  const r4 = rowsForLevel(m4, cols4);
-  const topRows = Math.max(r123, r4);
-  const r5 = rowsForLevel(m5, colsLeft);
-  const r6 = rowsForLevel(m6, cols6);
-  const leftRows = topRows + r5;
-  const bodyRows = Math.max(leftRows, r6);
+  const r1 = rowsForLevel(byLevel.hsk1, colsL);
+  const r2 = rowsForLevel(byLevel.hsk2, colsL);
+  const r3 = rowsForLevel(byLevel.hsk3, colsL);
+  const r6 = rowsForLevel(byLevel.hsk6, cols6);
+
+  const r23 = r2 + r3;
+  // Heights driven by left side: 4 matches 1, 5 matches 2+3.
+  const topRows = r1;
+  const midRows = r23;
+  const bodyRows = topRows + midRows + r6;
   const bodyH = bodyRows * CELL;
 
-  // Fill a solid rectangle — stretch shorter sections by growing row height.
   const topH = topRows * CELL;
-  const h5H = (bodyRows - topRows) * CELL; // absorbs extra if right side taller
-  const h6H = bodyH;
+  const midH = midRows * CELL;
+  const h6H = r6 * CELL;
 
-  const h1H = topH * (r1 / Math.max(1, r123));
-  const h2H = topH * (r2 / Math.max(1, r123));
-  const h3H = topH * (r3 / Math.max(1, r123));
+  const h1H = topH;
   const h4H = topH;
+  const h2H = midH * (r2 / Math.max(1, r23));
+  const h3H = midH * (r3 / Math.max(1, r23));
+  const h5H = midH;
 
-  const w123 = cols123 * CELL;
-  const w4 = cols4 * CELL;
-  const wLeft = colsLeft * CELL;
-  const w6 = cols6 * CELL;
+  const wL = colsL * CELL;
 
   return (
     <div
@@ -581,7 +650,7 @@ function VisualizedPage({
         }}
       >
         <div style={{ fontSize: 15, fontWeight: 700 }}>
-          HSK Tracker · Words Visualized · HSK 1–6
+          HSK 3.0 1-6 Words SuperMap
           {shuffled ? " · สุ่มในแต่ละระดับ" : ""}
         </div>
         <div
@@ -622,78 +691,85 @@ function VisualizedPage({
       <div
         style={{
           display: "flex",
-          flexDirection: "row",
-          alignItems: "stretch",
+          flexDirection: "column",
           width: totalCols * CELL,
           height: bodyH,
           gap: 0,
         }}
       >
+        {/* Row: 1 | 4 — same height (4 rows match 1) */}
         <div
           style={{
-            width: wLeft,
-            height: bodyH,
             display: "flex",
-            flexDirection: "column",
+            flexDirection: "row",
+            alignItems: "stretch",
+            height: topH,
+            gap: 0,
+          }}
+        >
+          <LevelBlock
+            listId="hsk1"
+            items={byLevel.hsk1}
+            cols={colsL}
+            height={h1H}
+          />
+          <LevelBlock
+            listId="hsk4"
+            items={byLevel.hsk4}
+            cols={cols4}
+            height={h4H}
+            stretch
+          />
+        </div>
+
+        {/* Row: 2+3 | 5 — same height (5 rows match 2+3) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "row",
+            alignItems: "stretch",
+            height: midH,
             gap: 0,
           }}
         >
           <div
             style={{
+              width: wL,
+              height: midH,
               display: "flex",
-              flexDirection: "row",
-              height: topH,
+              flexDirection: "column",
               gap: 0,
             }}
           >
-            <div
-              style={{
-                width: w123,
-                height: topH,
-                display: "flex",
-                flexDirection: "column",
-                gap: 0,
-              }}
-            >
-              <LevelBlock
-                listId="hsk1"
-                items={byLevel.hsk1}
-                cols={cols123}
-                height={h1H}
-              />
-              <LevelBlock
-                listId="hsk2"
-                items={byLevel.hsk2}
-                cols={cols123}
-                height={h2H}
-              />
-              <LevelBlock
-                listId="hsk3"
-                items={byLevel.hsk3}
-                cols={cols123}
-                height={h3H}
-              />
-            </div>
             <LevelBlock
-              listId="hsk4"
-              items={byLevel.hsk4}
-              cols={cols4}
-              height={h4H}
+              listId="hsk2"
+              items={byLevel.hsk2}
+              cols={colsL}
+              height={h2H}
+            />
+            <LevelBlock
+              listId="hsk3"
+              items={byLevel.hsk3}
+              cols={colsL}
+              height={h3H}
             />
           </div>
           <LevelBlock
             listId="hsk5"
             items={byLevel.hsk5}
-            cols={colsLeft}
+            cols={cols5}
             height={h5H}
+            stretch
           />
         </div>
 
+        {/* Full width: 6 under everything */}
         <LevelBlock
           listId="hsk6"
           items={byLevel.hsk6}
           cols={cols6}
           height={h6H}
+          stretch={false}
         />
       </div>
     </div>
@@ -796,7 +872,7 @@ export function HskWordMapSheet({
       const height = node.scrollHeight;
 
       const canvas = await html2canvas(node, {
-        scale: 1.5,
+        scale: 2,
         backgroundColor: "#ffffff",
         useCORS: true,
         logging: false,
@@ -810,8 +886,45 @@ export function HskWordMapSheet({
             .forEach((n) => n.remove());
           element.style.color = "#171717";
           element.style.backgroundColor = "#ffffff";
-          element.style.overflow = "visible";
+          element.style.overflow = "hidden";
           element.style.height = "auto";
+          element.style.fontFamily =
+            '"Microsoft YaHei", "PingFang SC", "Noto Sans SC", "Segoe UI", sans-serif';
+
+          // Mild PDF-only shrink so canvas CJK does not spill; keep multi-char readable.
+          element.querySelectorAll<HTMLElement>("[data-map-cell]").forEach((cell) => {
+            cell.style.overflow = "hidden";
+            cell.style.clipPath = "inset(0)";
+            cell.style.display = "flex";
+            cell.style.alignItems = "flex-start";
+            cell.style.justifyContent = "center";
+            cell.style.paddingTop = "2px";
+          });
+          element.querySelectorAll<HTMLElement>("[data-map-glyphs]").forEach((wrap) => {
+            wrap.style.overflow = "hidden";
+            wrap.style.display = "flex";
+            wrap.style.alignItems = "flex-start";
+            wrap.style.justifyContent = "center";
+            const count = Number(wrap.getAttribute("data-map-glyphs") || "1");
+            wrap.style.paddingTop = count >= 3 ? "1px" : "2px";
+            wrap.style.width = "100%";
+            wrap.style.height = "100%";
+          });
+          element.querySelectorAll<HTMLElement>("[data-map-glyph]").forEach((g) => {
+            const fs = parseFloat(g.style.fontSize) || 10;
+            const parent = g.closest("[data-map-glyphs]");
+            const count = Number(parent?.getAttribute("data-map-glyphs") || "1");
+            // Shrink 3-char more in PDF; keep 3/4-char top-aligned.
+            const factor =
+              count === 3 ? 0.88 : count >= 4 ? 0.94 : count === 2 ? 0.96 : 0.92;
+            g.style.fontSize = `${Math.max(7, fs * factor)}px`;
+            g.style.fontWeight = "600";
+            g.style.lineHeight = "1";
+            g.style.transform = "none";
+            if (count >= 3) {
+              g.style.alignSelf = "flex-start";
+            }
+          });
         },
       });
 
@@ -851,7 +964,7 @@ export function HskWordMapSheet({
               id="word-map-title"
               className="text-lg font-semibold tracking-tight"
             >
-              HSK Words Visualized
+              HSK 3.0 1-6 Words SuperMap
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               HSK 1–6 ในหน้าเดียว · {total} คำ
@@ -873,7 +986,7 @@ export function HskWordMapSheet({
           <section className="rounded-xl border border-border p-4">
             <div className="text-sm font-medium">การจัดวางระดับ</div>
             <p className="mt-1 text-xs text-muted-foreground">
-              1 บน 2 บน 3 · 4 ข้าง 123 · 5 ใต้ 1234 · 6 ข้าง 4 และ 5
+              1 ข้าง 4 (4 กว้างกว่า) · 5 ข้าง 2 และ 3 · 6 ใต้ทั้งหมด
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
               {HSK_LISTS.map((list) => {
