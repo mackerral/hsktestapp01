@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ArrowUp, Dices, Download, Loader2, X } from "lucide-react";
+import { ArrowUp, Dices, Download, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   HSK_LISTS,
-  loadPencilMarks,
   loadStatus,
   wordId,
   type HskWord,
   type ListId,
-  type PencilMap,
   type StatusMap,
 } from "@/lib/hsk-lists";
 
@@ -23,21 +21,18 @@ type DrillItem = {
   word: HskWord;
   sourceIndex: number;
   color: ColorStatus;
-  penciled: boolean;
 };
 
 type StatusFilter = {
   known: boolean;
   unknown: boolean;
   neutral: boolean;
-  pencil: boolean;
 };
 
 const DEFAULT_STATUSES: StatusFilter = {
   known: true,
   unknown: true,
   neutral: true,
-  pencil: false,
 };
 
 const STATUS_ROWS = [
@@ -55,11 +50,6 @@ const STATUS_ROWS = [
     key: "neutral" as const,
     label: "เทา · ยังไม่ได้กด",
     dot: "bg-slate-400",
-  },
-  {
-    key: "pencil" as const,
-    label: "ดินสอ · ที่มาร์คไว้",
-    dot: "bg-orange-400",
   },
 ] as const;
 
@@ -95,12 +85,10 @@ const C = {
   faint: "#a3a3a3",
   line: "#e5e5e5",
   rule: "#262626",
-  blank: "#a3a3a3",
   paper: "#ffffff",
   known: "#10b981",
   unknown: "#f43f5e",
   neutral: "#94a3b8",
-  pencil: "#fb923c",
 } as const;
 
 type FontPreset = {
@@ -182,13 +170,7 @@ function rowGridStyle(showStatus: boolean): CSSProperties {
   };
 }
 
-function StatusMark({
-  color,
-  penciled,
-}: {
-  color: ColorStatus;
-  penciled: boolean;
-}) {
+function StatusMark({ color }: { color: ColorStatus }) {
   const fill =
     color === "known"
       ? C.known
@@ -203,9 +185,8 @@ function StatusMark({
         justifyContent: "center",
         width: 14,
         height: 14,
-        position: "relative",
       }}
-      title={penciled ? `${color}+pencil` : color}
+      title={color}
     >
       <span
         style={{
@@ -216,21 +197,6 @@ function StatusMark({
           display: "block",
         }}
       />
-      {penciled && (
-        <span
-          style={{
-            position: "absolute",
-            right: -1,
-            bottom: -1,
-            width: 6,
-            height: 6,
-            borderRadius: 999,
-            backgroundColor: C.pencil,
-            border: `1px solid ${C.paper}`,
-            boxSizing: "border-box",
-          }}
-        />
-      )}
     </span>
   );
 }
@@ -273,7 +239,6 @@ function FieldCell({
         width: "100%",
         height: Math.round(fontSize * 1.35),
         marginTop: 2,
-        borderBottom: `1.5px solid ${C.blank}`,
       }}
       aria-hidden
     />
@@ -303,9 +268,7 @@ function WordRow({
         color: C.ink,
       }}
     >
-      {showStatus && (
-        <StatusMark color={item.color} penciled={item.penciled} />
-      )}
+      {showStatus && <StatusMark color={item.color} />}
       <span
         style={{
           fontSize: font.index,
@@ -357,8 +320,8 @@ function ColumnHeader({
       {showStatus && <span />}
       <span>#</span>
       <span>汉字</span>
-      <span>Pinyin</span>
-      <span>ความหมาย</span>
+      <span />
+      <span />
     </div>
   );
 }
@@ -455,7 +418,7 @@ function A4Page({
               color: C.ink,
             }}
           >
-            HSK Tracker · {listLabel} · แบบฝึกกำหนดเอง
+            HSK Tracker · {listLabel}
           </div>
           <div
             style={{
@@ -466,7 +429,7 @@ function A4Page({
             }}
           >
             ช่องว่าง = ส่วนที่ซ่อนไว้ ให้เขียนเติมเอง
-            {showStatus ? " · จุดสี = สถานะ (ส้มมุม = ดินสอ)" : ""}
+            {showStatus ? " · จุดสี = สถานะ" : ""}
           </div>
         </div>
         <div
@@ -549,7 +512,6 @@ export function CustomDrillSheet({
     ...DEFAULT_STATUSES,
   });
   const [statusMap, setStatusMap] = useState<StatusMap>({});
-  const [pencilMarks, setPencilMarks] = useState<PencilMap>({});
   const [shuffleOn, setShuffleOn] = useState(false);
   const [shuffleSeed, setShuffleSeed] = useState(1);
   const [fontId, setFontId] = useState<FontPreset["id"]>("M");
@@ -565,7 +527,6 @@ export function CustomDrillSheet({
 
   useEffect(() => {
     setStatusMap(loadStatus(listId));
-    setPencilMarks(loadPencilMarks(listId));
     setStatuses({ ...DEFAULT_STATUSES });
     setShuffleOn(false);
   }, [listId]);
@@ -578,25 +539,24 @@ export function CustomDrillSheet({
   const visibleCount = FIELDS.filter((f) => show[f.key]).length;
 
   const statusCounts = useMemo(() => {
-    const counts = { known: 0, unknown: 0, neutral: 0, pencil: 0 };
+    const counts = { known: 0, unknown: 0, neutral: 0 };
     words.forEach((word, index) => {
       const id = wordId(word.chinese, word.pinyin, index);
       const s = statusMap[id];
       if (s === "known") counts.known += 1;
       else if (s === "unknown") counts.unknown += 1;
       else counts.neutral += 1;
-      if (pencilMarks[id]) counts.pencil += 1;
     });
     return counts;
-  }, [words, statusMap, pencilMarks]);
+  }, [words, statusMap]);
 
   const selectedItems = useMemo(() => {
     const colorOn = statuses.known || statuses.unknown || statuses.neutral;
+    if (!colorOn) return [];
     const filtered: DrillItem[] = [];
     words.forEach((word, index) => {
       const id = wordId(word.chinese, word.pinyin, index);
       const s = statusMap[id];
-      const penciled = Boolean(pencilMarks[id]);
       const color: ColorStatus =
         s === "known" ? "known" : s === "unknown" ? "unknown" : "neutral";
 
@@ -605,18 +565,16 @@ export function CustomDrillSheet({
       else if (color === "unknown") colorMatch = statuses.unknown;
       else colorMatch = statuses.neutral;
 
-      if (colorMatch || (statuses.pencil && penciled)) {
+      if (colorMatch) {
         filtered.push({
           word,
           sourceIndex: index,
           color,
-          penciled,
         });
       }
     });
-    if (!colorOn && !statuses.pencil) return [];
     return shuffleOn ? shuffleSeeded(filtered, shuffleSeed) : filtered;
-  }, [words, statusMap, pencilMarks, statuses, shuffleOn, shuffleSeed]);
+  }, [words, statusMap, statuses, shuffleOn, shuffleSeed]);
 
   const pages = useMemo(
     () => chunkWords(selectedItems, wordsPerPage),
@@ -657,35 +615,8 @@ export function CustomDrillSheet({
 
   function toggleStatus(key: keyof StatusFilter) {
     setStatuses((prev) => {
-      // Pencil on from a full color set → pencil-only snapshot.
-      // Turning pencil off → restore all colors.
-      if (key === "pencil") {
-        if (!prev.pencil) {
-          const onlyColors =
-            (prev.known ? 1 : 0) +
-              (prev.unknown ? 1 : 0) +
-              (prev.neutral ? 1 : 0) ===
-            3;
-          if (onlyColors || (!prev.known && !prev.unknown && !prev.neutral)) {
-            return {
-              known: false,
-              unknown: false,
-              neutral: false,
-              pencil: true,
-            };
-          }
-          // Already filtering some colors → keep them and also enable pencil (OR).
-          return { ...prev, pencil: true };
-        }
-        return {
-          known: prev.known || prev.unknown || prev.neutral ? prev.known : true,
-          unknown: prev.known || prev.unknown || prev.neutral ? prev.unknown : true,
-          neutral: prev.known || prev.unknown || prev.neutral ? prev.neutral : true,
-          pencil: false,
-        };
-      }
       const next = { ...prev, [key]: !prev[key] };
-      if (!next.known && !next.unknown && !next.neutral && !next.pencil) {
+      if (!next.known && !next.unknown && !next.neutral) {
         return prev;
       }
       return next;
@@ -765,7 +696,7 @@ export function CustomDrillSheet({
               id="custom-drill-title"
               className="text-lg font-semibold tracking-tight"
             >
-              แบบฝึกกำหนดเอง
+              แบบฝึกหัดแบบเว้นช่องว่าง
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
               {listLabel} · ใช้ {selectedItems.length}/{words.length} คำ · ขนาด
@@ -775,10 +706,10 @@ export function CustomDrillSheet({
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted"
-            aria-label="ปิด"
+            className="shrink-0 rounded-lg border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
+            aria-label="กลับไปเมนู"
           >
-            <X className="size-5" />
+            กลับไปเมนู
           </button>
         </div>
       </div>
@@ -839,21 +770,21 @@ export function CustomDrillSheet({
                   {show.chinese ? (
                     previewWord.chinese
                   ) : (
-                    <span className="inline-block w-full min-w-[2rem] border-b border-muted-foreground/50" />
+                    <span className="inline-block min-h-[1em] w-full min-w-[2rem]" />
                   )}
                 </span>
                 <span className="min-w-[3rem] text-muted-foreground">
                   {show.pinyin ? (
                     previewWord.pinyin
                   ) : (
-                    <span className="inline-block w-full min-w-[2.5rem] border-b border-muted-foreground/50" />
+                    <span className="inline-block min-h-[1em] w-full min-w-[2.5rem]" />
                   )}
                 </span>
                 <span className="min-w-[3rem] text-muted-foreground">
                   {show.thai ? (
                     previewWord.thai
                   ) : (
-                    <span className="inline-block w-full min-w-[2.5rem] border-b border-muted-foreground/50" />
+                    <span className="inline-block min-h-[1em] w-full min-w-[2.5rem]" />
                   )}
                 </span>
               </div>
@@ -889,7 +820,7 @@ export function CustomDrillSheet({
           <section className="rounded-xl border border-border p-4">
             <div className="text-sm font-medium">เลือกศัพท์ตามสถานะ</div>
             <p className="mt-1 text-xs text-muted-foreground">
-              รวมคำตามที่เปิดไว้ (เช่น แดง + ดินสอ = คำแดงทั้งหมด และคำที่มาร์คดินสอ)
+              รวมคำตามสีที่เปิดไว้ (เช่น แดง + เขียว = คำแดงและเขียวทั้งหมด)
             </p>
             <div className="mt-3 grid gap-2">
               {STATUS_ROWS.map((row) => (
@@ -934,7 +865,7 @@ export function CustomDrillSheet({
               <span className="min-w-0">
                 <span className="block font-medium">แสดงสถานะใน PDF</span>
                 <span className="mt-0.5 block text-xs text-muted-foreground">
-                  จุดสีก่อนเลขที่ · จุดส้มมุม = ดินสอ
+                  จุดสีก่อนเลขที่
                 </span>
               </span>
               <span className="shrink-0 text-xs text-muted-foreground">
@@ -1060,7 +991,7 @@ export function CustomDrillSheet({
           </div>
           {selectedItems.length === 0 && (
             <p className="text-sm text-amber-700 dark:text-amber-300">
-              ไม่มีคำตามสถานะที่เลือก — เปิดเขียว/แดง/เทา/ดินสออย่างน้อยหนึ่งแบบ
+              ไม่มีคำตามสถานะที่เลือก — เปิดเขียว/แดง/เทาอย่างน้อยหนึ่งแบบ
             </p>
           )}
           {error && (

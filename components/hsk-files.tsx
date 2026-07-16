@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CustomDrillSheet } from "@/components/custom-drill-sheet";
+import { HskWordMapSheet } from "@/components/hsk-word-map-sheet";
 import type { HskWord, ListId } from "@/lib/hsk-lists";
 
 export function HskFilesView({
@@ -10,6 +11,7 @@ export function HskFilesView({
   wordsByList: Record<ListId, HskWord[]>;
 }) {
   const [openCustomDrill, setOpenCustomDrill] = useState(false);
+  const [openWordMap, setOpenWordMap] = useState(false);
 
   return (
     <div className="h-full w-full overflow-y-auto overscroll-contain">
@@ -30,24 +32,25 @@ export function HskFilesView({
             className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
           >
             <div className="text-lg font-semibold tracking-tight sm:text-xl">
-              แบบฝึกกำหนดเอง
+              แบบฝึกหัดแบบเว้นช่องว่าง
             </div>
             <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
               HSK 1–6 · ซ่อนช่อง / กรองสถานะ / สุ่มลำดับ · PDF A4
             </div>
           </button>
 
-          <div
-            aria-disabled
-            className="rounded-xl border border-dashed border-border/80 bg-muted/20 p-4 sm:p-5"
+          <button
+            type="button"
+            onClick={() => setOpenWordMap(true)}
+            className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
           >
-            <div className="text-lg font-semibold tracking-tight text-muted-foreground sm:text-xl">
-              HSK3.0 Supermap PDF
+            <div className="text-lg font-semibold tracking-tight sm:text-xl">
+              HSK Words Visualized
             </div>
             <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              Coming soon
+              HSK 1–6 ทั้งชุดในหน้าเดียว · สีตามระดับ · สุ่มได้
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -56,6 +59,14 @@ export function HskFilesView({
           wordsByList={wordsByList}
           initialListId="hsk1"
           onClose={() => setOpenCustomDrill(false)}
+        />
+      )}
+
+      {openWordMap && (
+        <HskWordMapSheet
+          wordsByList={wordsByList}
+          initialListId="hsk1"
+          onClose={() => setOpenWordMap(false)}
         />
       )}
     </div>

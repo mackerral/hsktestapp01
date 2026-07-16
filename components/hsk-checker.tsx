@@ -355,6 +355,7 @@ export function HskChecker({
 
   const pickingStart = swipeMode && swipeIndex == null;
   const swiping = swipeMode && swipeIndex != null;
+  const showPencilTool = false;
 
   const navBtn =
     "inline-flex h-11 shrink-0 touch-manipulation items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 text-sm font-medium transition-colors sm:h-11 sm:gap-2 sm:px-4 [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-5";
@@ -564,7 +565,7 @@ export function HskChecker({
             เลือกคำที่ต้องการเริ่ม swipe ;)
           </div>
         )}
-        {pencilMode && !pickingStart && (
+        {showPencilTool && pencilMode && !pickingStart && (
           <div className="border-t border-orange-200 bg-orange-50 px-4 py-2.5 text-orange-900 sm:px-6 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-100">
             <div className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-sm font-medium sm:text-base">
               <span>กำลังใช้ mode ดินสอ</span>
@@ -581,7 +582,7 @@ export function HskChecker({
               <div className="mx-auto mt-2 max-w-lg rounded-lg border border-orange-200/80 bg-white/70 px-3 py-2.5 text-left text-xs font-normal leading-relaxed text-orange-950 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-50 sm:text-sm">
                 <p>กดการ์ดเพื่อติด icon (มุมบนขวา)</p>
                 <p className="mt-1.5">
-                  คำที่มาร์คดินสอ สามารถกรองได้ใน แจกไฟล์ → แบบฝึกกำหนดเอง
+                  คำที่มาร์คดินสอ สามารถกรองได้ใน แจกไฟล์ → แบบฝึกหัดแบบเว้นช่องว่าง
                   เพื่อสร้าง PDF เฉพาะคำที่เลือกไว้
                 </p>
               </div>
@@ -909,8 +910,8 @@ export function HskChecker({
           words={orderedWords}
           ids={orderedIds}
           status={status}
-          pencilMarks={pencilMarks}
-          pencilMode={pencilMode}
+          pencilMarks={showPencilTool ? pencilMarks : {}}
+          pencilMode={showPencilTool && pencilMode}
           onToggle={toggleWord}
           onPencilToggle={togglePencilMark}
           onPick={(i) => setSwipeIndex(i)}
@@ -997,23 +998,25 @@ export function HskChecker({
               <VolumeX className="size-5 shrink-0 opacity-70" />
             )}
           </button>
-          <button
-            type="button"
-            aria-pressed={pencilMode}
-            aria-label="mode ดินสอ สำหรับแบบฝึกหัด"
-            title="mode ดินสอ · สำหรับแบบฝึกหัด"
-            onClick={() => {
-              setPencilMode((v) => {
-                const next = !v;
-                if (next) setPencilInfoOpen(true);
-                else setPencilInfoOpen(false);
-                return next;
-              });
-            }}
-            className={cn(navIconBtn, pencilMode ? pencilBtnOn : navBtnOff)}
-          >
-            <Pencil className="size-5 shrink-0" />
-          </button>
+          {showPencilTool && (
+            <button
+              type="button"
+              aria-pressed={pencilMode}
+              aria-label="mode ดินสอ สำหรับแบบฝึกหัด"
+              title="mode ดินสอ · สำหรับแบบฝึกหัด"
+              onClick={() => {
+                setPencilMode((v) => {
+                  const next = !v;
+                  if (next) setPencilInfoOpen(true);
+                  else setPencilInfoOpen(false);
+                  return next;
+                });
+              }}
+              className={cn(navIconBtn, pencilMode ? pencilBtnOn : navBtnOff)}
+            >
+              <Pencil className="size-5 shrink-0" />
+            </button>
+          )}
         </div>
       </div>
     </div>
