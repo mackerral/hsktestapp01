@@ -1,11 +1,10 @@
 "use client";
 
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Dices, Download, Loader2 } from "lucide-react";
+import { Download, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import html2canvas from "html2canvas";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   HSK_LISTS,
   type HskWord,
@@ -52,20 +51,6 @@ function cleanChinese(raw: string) {
     .replace(/[0-9０-９]/g, "")
     .replace(/\s+/g, "")
     .trim();
-}
-
-function shuffleSeeded<T>(items: T[], seed: number): T[] {
-  const a = [...items];
-  let s = seed || 1;
-  const rand = () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
-  };
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 /** Uniform 1–2 char = 1 cell; 3+ char = 2 cells (single-line). */
@@ -585,10 +570,8 @@ function WordGlyphs({
 
 function VisualizedPage({
   byLevel,
-  shuffled,
 }: {
   byLevel: Record<ListId, MapItem[]>;
-  shuffled: boolean;
 }) {
   const { totalCols, colsL, cols4, cols5, cols6 } = pickColLayout(
     byLevel.hsk1,
@@ -651,7 +634,6 @@ function VisualizedPage({
       >
         <div style={{ fontSize: 15, fontWeight: 700 }}>
           HSK 3.0 1-6 Words SuperMap
-          {shuffled ? " · สุ่มในแต่ละระดับ" : ""}
         </div>
         <div
           style={{
@@ -778,17 +760,18 @@ function VisualizedPage({
 
 export function HskWordMapSheet({
   wordsByList,
+  onLoadProgress,
   onClose,
 }: {
   wordsByList: Record<ListId, HskWord[]>;
   initialListId?: ListId;
+  onLoadProgress?: (progress: number) => void;
   onClose: () => void;
 }) {
-  const [shuffleOn, setShuffleOn] = useState(false);
-  const [shuffleSeed, setShuffleSeed] = useState(1);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pageH, setPageH] = useState(1800);
+  const [renderedLevelCount, setRenderedLevelCount] = useState(1);
   const pageRef = useRef<HTMLDivElement>(null);
   const previewMeasureRef = useRef<HTMLDivElement>(null);
 
@@ -812,34 +795,21 @@ export function HskWordMapSheet({
     return map;
   }, [wordsByList]);
 
+  // Render one additional HSK level per browser frame. Progress now represents
+  // real map DOM/layout work rather than elapsed time.
   const byLevel = useMemo(() => {
-    if (!shuffleOn) return baseByLevel;
+    if (renderedLevelCount >= HSK_LISTS.length) return baseByLevel;
+
     const map = {} as Record<ListId, MapItem[]>;
-    HSK_LISTS.forEach((list, i) => {
-      // Keep length groups in order; shuffle only within each length.
-      const byLen = new Map<number, MapItem[]>();
-      for (const item of baseByLevel[list.id]) {
-        const len = Array.from(item.chinese).length;
-        const bucket = byLen.get(len) ?? [];
-        bucket.push(item);
-        byLen.set(len, bucket);
-      }
-      const ordered: MapItem[] = [];
-      [...byLen.keys()]
-        .sort((a, b) => a - b)
-        .forEach((len, j) => {
-          ordered.push(
-            ...shuffleSeeded(byLen.get(len)!, shuffleSeed + i * 17 + j * 31),
-          );
-        });
-      map[list.id] = ordered;
+    HSK_LISTS.forEach((list, index) => {
+      map[list.id] = index < renderedLevelCount ? baseByLevel[list.id] : [];
     });
     return map;
-  }, [baseByLevel, shuffleOn, shuffleSeed]);
+  }, [baseByLevel, renderedLevelCount]);
 
   const total = useMemo(
-    () => HSK_LISTS.reduce((sum, list) => sum + byLevel[list.id].length, 0),
-    [byLevel],
+    () => HSK_LISTS.reduce((sum, list) => sum + baseByLevel[list.id].length, 0),
+    [baseByLevel],
   );
 
   useLayoutEffect(() => {
@@ -852,13 +822,33 @@ export function HskWordMapSheet({
     update();
     const ro = new ResizeObserver(update);
     ro.observe(page);
-    return () => ro.disconnect();
-  }, [byLevel]);
 
-  function reshuffle() {
-    setShuffleOn(true);
-    setShuffleSeed((s) => s + 1);
-  }
+    let nextFrame = 0;
+    let readyFrame = 0;
+    const levelProgress = Math.round(
+      (renderedLevelCount / HSK_LISTS.length) * 95,
+    );
+    onLoadProgress?.(levelProgress);
+
+    if (renderedLevelCount < HSK_LISTS.length) {
+      nextFrame = requestAnimationFrame(() => {
+        setRenderedLevelCount((count) =>
+          Math.min(HSK_LISTS.length, count + 1),
+        );
+      });
+    } else {
+      // Two frames ensure the complete preview and hidden PDF page have painted.
+      nextFrame = requestAnimationFrame(() => {
+        readyFrame = requestAnimationFrame(() => onLoadProgress?.(100));
+      });
+    }
+
+    return () => {
+      ro.disconnect();
+      cancelAnimationFrame(nextFrame);
+      cancelAnimationFrame(readyFrame);
+    };
+  }, [byLevel, onLoadProgress, renderedLevelCount]);
 
   async function downloadPdf() {
     if (!pageRef.current || busy) return;
@@ -938,11 +928,7 @@ export function HskWordMapSheet({
         compress: true,
       });
       pdf.addImage(img, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
-      pdf.save(
-        shuffleOn
-          ? `hsk1-6-words-visualized-random.pdf`
-          : `hsk1-6-words-visualized.pdf`,
-      );
+      pdf.save("hsk1-6-words-visualized.pdf");
     } catch (e) {
       setError(e instanceof Error ? e.message : "สร้าง PDF ไม่สำเร็จ");
     } finally {
@@ -984,11 +970,7 @@ export function HskWordMapSheet({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto w-full max-w-5xl space-y-4">
           <section className="rounded-xl border border-border p-4">
-            <div className="text-sm font-medium">การจัดวางระดับ</div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              1 ข้าง 4 (4 กว้างกว่า) · 5 ข้าง 2 และ 3 · 6 ใต้ทั้งหมด
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2">
               {HSK_LISTS.map((list) => {
                 const tone = LEVEL_COLORS[list.id];
                 return (
@@ -1011,27 +993,7 @@ export function HskWordMapSheet({
           </section>
 
           <section className="rounded-xl border border-border p-4">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <button
-                type="button"
-                onClick={() => setShuffleOn((v) => !v)}
-                className={cn(
-                  "flex-1 rounded-lg border px-3 py-2.5 text-sm font-medium",
-                  shuffleOn
-                    ? "border-foreground bg-accent/50"
-                    : "border-border hover:bg-muted",
-                )}
-              >
-                สุ่มในแต่ละระดับ {shuffleOn ? "เปิด" : "ปิด"}
-              </button>
-              <button
-                type="button"
-                onClick={reshuffle}
-                className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2.5 text-sm font-medium hover:bg-muted"
-              >
-                <Dices className="size-4" />
-                สุ่มใหม่
-              </button>
+            <div className="flex justify-center">
               <Button
                 type="button"
                 onClick={downloadPdf}
@@ -1071,7 +1033,7 @@ export function HskWordMapSheet({
                     width: PAGE_W,
                   }}
                 >
-                  <VisualizedPage byLevel={byLevel} shuffled={shuffleOn} />
+                  <VisualizedPage byLevel={byLevel} />
                 </div>
               </div>
             </div>
@@ -1089,7 +1051,7 @@ export function HskWordMapSheet({
           pointerEvents: "none",
         }}
       >
-        <VisualizedPage byLevel={byLevel} shuffled={shuffleOn} />
+        <VisualizedPage byLevel={byLevel} />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { CustomDrillSheet } from "@/components/custom-drill-sheet";
 import { HskWordMapSheet } from "@/components/hsk-word-map-sheet";
 import type { HskWord, ListId } from "@/lib/hsk-lists";
@@ -12,6 +12,21 @@ export function HskFilesView({
 }) {
   const [openCustomDrill, setOpenCustomDrill] = useState(false);
   const [openWordMap, setOpenWordMap] = useState(false);
+  const [wordMapProgress, setWordMapProgress] = useState<number | null>(null);
+
+  const openSuperMap = () => {
+    setWordMapProgress(5);
+    // Let the loading overlay paint before mounting the large map.
+    requestAnimationFrame(() => setOpenWordMap(true));
+  };
+
+  const handleWordMapProgress = useCallback((progress: number) => {
+    setWordMapProgress(progress);
+    if (progress >= 100) {
+      // Keep 100% visible for one painted frame, then reveal the finished map.
+      requestAnimationFrame(() => setWordMapProgress(null));
+    }
+  }, []);
 
   return (
     <div className="h-full w-full overflow-y-auto overscroll-contain">
@@ -41,14 +56,15 @@ export function HskFilesView({
 
           <button
             type="button"
-            onClick={() => setOpenWordMap(true)}
+            onClick={openSuperMap}
+            disabled={wordMapProgress !== null}
             className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
           >
             <div className="text-lg font-semibold tracking-tight sm:text-xl">
               HSK 3.0 1-6 Words SuperMap
             </div>
             <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              HSK 1–6 ทั้งชุดในหน้าเดียว · สีตามระดับ · สุ่มได้
+              HSK 1–6 ทั้งชุดในหน้าเดียว · สีตามระดับ
             </div>
           </button>
         </div>
@@ -66,8 +82,42 @@ export function HskFilesView({
         <HskWordMapSheet
           wordsByList={wordsByList}
           initialListId="hsk1"
-          onClose={() => setOpenWordMap(false)}
+          onLoadProgress={handleWordMapProgress}
+          onClose={() => {
+            setOpenWordMap(false);
+            setWordMapProgress(null);
+          }}
         />
+      )}
+
+      {wordMapProgress !== null && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-background/90 px-6 backdrop-blur-sm"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-5 shadow-lg">
+            <div className="mb-3 flex items-center justify-between gap-3 text-sm font-medium">
+              <span>กำลังเปิด SuperMap…</span>
+              <span className="tabular-nums text-muted-foreground">
+                {wordMapProgress}%
+              </span>
+            </div>
+            <div
+              className="h-2.5 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-label="กำลังเปิด SuperMap"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={wordMapProgress}
+            >
+              <div
+                className="h-full rounded-full bg-foreground transition-[width] duration-75"
+                style={{ width: `${wordMapProgress}%` }}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
