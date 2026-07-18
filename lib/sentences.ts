@@ -111,3 +111,20 @@ export function sentenceStatusKey(level: SentenceLevel) {
 export function sentenceItemId(cardId: string, index: number) {
   return `${cardId}:${index}`;
 }
+
+/** First HSK 1–3 sentence that contains the Chinese word (level order). */
+export function findExampleSentence(
+  chinese: string,
+  groups: SentenceLevelGroup[],
+): SentenceItem | null {
+  const needle = chinese.trim();
+  if (!needle) return null;
+  for (const group of groups) {
+    for (const card of group.cards) {
+      for (const sentence of card.sentences) {
+        if (sentence.chinese.includes(needle)) return sentence;
+      }
+    }
+  }
+  return null;
+}

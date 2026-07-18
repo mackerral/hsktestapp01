@@ -46,6 +46,7 @@ import {
   type Status,
   type StatusMap,
 } from "@/lib/hsk-lists";
+import type { SentenceLevelGroup } from "@/lib/sentences";
 
 type OrderMode =
   | "default"
@@ -155,12 +156,14 @@ export function HskChecker({
   listId,
   words,
   wordsByList,
+  sentenceGroups,
   onBack,
   onStartQuiz,
 }: {
   listId: ListId;
   words: HskWord[];
   wordsByList: Record<ListId, HskWord[]>;
+  sentenceGroups: SentenceLevelGroup[];
   onBack: () => void;
   onStartQuiz: (
     preset: QuizModeId,
@@ -928,6 +931,7 @@ export function HskChecker({
           columns={columns}
           pickMode={pickingStart}
           highlightIndex={hopIndex}
+          sentenceGroups={sentenceGroups}
         />
       </div>
 

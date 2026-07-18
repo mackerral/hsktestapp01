@@ -87,6 +87,7 @@ export function HskApp({
         listId={activeList}
         words={wordsByList[activeList]}
         wordsByList={wordsByList}
+        sentenceGroups={sentenceGroups}
         onBack={() => {
           setActiveList(null);
           setPage(0);

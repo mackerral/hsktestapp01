@@ -423,6 +423,7 @@ export function HskSentencesView({
                 fontSize={fontSize}
                 large
                 enableGloss
+                sentenceGroups={groups}
                 onSpeak={showSound ? () => speak(openCard.title) : undefined}
               />
               <p className="mt-1.5 text-xs text-muted-foreground">
@@ -447,6 +448,7 @@ export function HskSentencesView({
                   showSentenceThai={showSentenceThai}
                   showSound={showSound}
                   fontSize={fontSize}
+                  sentenceGroups={groups}
                 />
               ))}
             </ol>
@@ -715,6 +717,7 @@ function StoryTitle({
   fontSize,
   large = false,
   enableGloss = false,
+  sentenceGroups,
   onSpeak,
 }: {
   title: string;
@@ -726,6 +729,7 @@ function StoryTitle({
   fontSize: number;
   large?: boolean;
   enableGloss?: boolean;
+  sentenceGroups?: SentenceLevelGroup[];
   onSpeak?: () => void;
 }) {
   const tokens = useMemo(() => segmentChinese(title, vocab), [title, vocab]);
@@ -740,7 +744,7 @@ function StoryTitle({
       .filter((t) => t.isWord && t.thai)
       .map((t) => t.thai)
       .join("");
-  const gloss = useGlossPopup();
+  const gloss = useGlossPopup(sentenceGroups);
 
   return (
     <>
@@ -881,6 +885,7 @@ function SentenceLine({
   showSentenceThai,
   showSound,
   fontSize,
+  sentenceGroups,
 }: {
   index: number;
   item: SentenceItem;
@@ -890,6 +895,7 @@ function SentenceLine({
   showSentenceThai: boolean;
   showSound: boolean;
   fontSize: number;
+  sentenceGroups?: SentenceLevelGroup[];
 }) {
   const tokens = useMemo(
     () => segmentChinese(item.chinese, vocab),
@@ -898,7 +904,7 @@ function SentenceLine({
   const showTable = showPinyin || showWordThai;
   const pinyinMax = Math.max(7, Math.round(fontSize * 0.48));
   const thaiMax = Math.max(7, Math.round(fontSize * 0.5));
-  const gloss = useGlossPopup();
+  const gloss = useGlossPopup(sentenceGroups);
 
   return (
     <li>

@@ -9,6 +9,11 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  findExampleSentence,
+  type SentenceItem,
+  type SentenceLevelGroup,
+} from "@/lib/sentences";
 
 const LONG_PRESS_MS = 400;
 const MOVE_CANCEL_PX = 12;
@@ -17,9 +22,11 @@ export type GlossWord = { text: string; pinyin: string; thai: string };
 
 export function WordGlossPopup({
   word,
+  example,
   onClose,
 }: {
   word: GlossWord;
+  example?: SentenceItem | null;
   onClose: () => void;
 }) {
   useEffect(() => {
@@ -34,7 +41,7 @@ export function WordGlossPopup({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-6"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-6 select-none [-webkit-user-select:none]"
       role="dialog"
       aria-modal="true"
       aria-label={`${word.text} ${word.pinyin} ${word.thai}`}
@@ -42,7 +49,7 @@ export function WordGlossPopup({
       onPointerDown={(event) => event.stopPropagation()}
     >
       <div
-        className="w-full max-w-xs rounded-2xl border border-border bg-background px-6 py-7 text-center shadow-xl"
+        className="w-full max-w-xs rounded-2xl border border-border bg-background px-6 py-7 text-center shadow-xl select-none [-webkit-user-select:none] [-webkit-touch-callout:none]"
         onClick={onClose}
       >
         <p className="text-4xl font-semibold leading-none tracking-tight text-foreground">
@@ -54,6 +61,21 @@ export function WordGlossPopup({
         <p className="mt-2 text-base leading-snug text-muted-foreground">
           {word.thai || "—"}
         </p>
+        {example ? (
+          <div className="mt-5 border-t border-border/70 pt-4 text-left">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">
+              ตัวอย่างประโยค
+            </p>
+            <p className="mt-1.5 text-base font-medium leading-snug text-foreground">
+              {example.chinese}
+            </p>
+            {example.thai ? (
+              <p className="mt-1 text-sm leading-snug text-muted-foreground">
+                {example.thai}
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <p className="mt-5 text-xs text-muted-foreground/80">แตะเพื่อปิด</p>
       </div>
     </div>,
@@ -130,12 +152,21 @@ export function useWordLongPress(onOpen: (word: GlossWord) => void) {
 }
 
 /** Hosts gloss popup state and exposes long-press binders for children. */
-export function useGlossPopup() {
+export function useGlossPopup(sentenceGroups?: SentenceLevelGroup[]) {
   const [glossWord, setGlossWord] = useState<GlossWord | null>(null);
   const longPress = useWordLongPress(setGlossWord);
 
+  const example =
+    glossWord && sentenceGroups
+      ? findExampleSentence(glossWord.text, sentenceGroups)
+      : null;
+
   const popup: ReactNode = glossWord ? (
-    <WordGlossPopup word={glossWord} onClose={() => setGlossWord(null)} />
+    <WordGlossPopup
+      word={glossWord}
+      example={example}
+      onClose={() => setGlossWord(null)}
+    />
   ) : null;
 
   return { ...longPress, popup, glossWord, setGlossWord };
