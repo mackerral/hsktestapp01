@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type TouchEvent,
+} from "react";
 import {
   ALargeSmall,
   BookText,
@@ -24,6 +31,7 @@ import {
   type SentenceLevel,
   type SentenceLevelGroup,
 } from "@/lib/sentences";
+import { useGlossPopup } from "@/components/word-gloss";
 
 const FONT_KEY = "hsk-sentence-font-size";
 const TOGGLE_KEY = "hsk-sentence-toggles";
@@ -206,6 +214,8 @@ export function HskSentencesView({
   const [openCardId, setOpenCardId] = useState<string | null>(null);
   const [fontSize, setFontSize] = useState(FONT_DEFAULT);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const storySwipeStart = useRef<{ x: number; y: number } | null>(null);
+  const storyScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadVoices();
@@ -262,6 +272,47 @@ export function HskSentencesView({
   }
 
   const openCard = active?.cards.find((c) => c.id === openCardId) ?? null;
+
+  function moveStory(direction: -1 | 1) {
+    if (!active || !openCard) return;
+    const current = active.cards.findIndex((card) => card.id === openCard.id);
+    const target = active.cards[current + direction];
+    if (!target) return;
+
+    setOpenCardId(target.id);
+    requestAnimationFrame(() => {
+      storyScrollRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  }
+
+  function handleStoryTouchStart(event: TouchEvent<HTMLDivElement>) {
+    if (settingsOpen) return;
+    const target = event.target as Element;
+    if (target.closest('[role="dialog"], input, textarea, select')) return;
+
+    const touch = event.touches[0];
+    if (!touch) return;
+    storySwipeStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handleStoryTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const start = storySwipeStart.current;
+    storySwipeStart.current = null;
+    if (!start || settingsOpen) return;
+
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (
+      Math.abs(deltaX) < 60 ||
+      Math.abs(deltaX) <= Math.abs(deltaY) * 1.25
+    ) {
+      return;
+    }
+
+    moveStory(deltaX < 0 ? 1 : -1);
+  }
 
   const navBtn =
     "flex min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-lg border px-0.5 py-1.5 text-[9px] font-medium leading-tight transition-colors sm:gap-1 sm:px-1.5 sm:py-2 sm:text-xs [-webkit-tap-highlight-color:transparent] [&_svg]:pointer-events-none [&_svg]:size-[18px] sm:[&_svg]:size-5 [&_svg]:shrink-0";
@@ -328,10 +379,23 @@ export function HskSentencesView({
     const storyStatus = cardStatus(openCard, statusMap);
 
     return (
-      <div className="flex h-dvh flex-col overflow-hidden bg-background">
+      <div
+        className="flex h-dvh touch-pan-y flex-col overflow-hidden bg-background"
+        onTouchStart={handleStoryTouchStart}
+        onTouchEnd={handleStoryTouchEnd}
+        onTouchCancel={() => {
+          storySwipeStart.current = null;
+        }}
+      >
         <div className="flex shrink-0 items-center justify-between border-b border-border px-4 py-3">
           <div className="min-w-0 truncate text-sm text-muted-foreground">
             เรื่องที่ {openCard.index}/{active.cards.length}
+            <span className="ml-1.5 text-xs font-medium">
+              · HSK {active.level}
+            </span>
+            <span className="ml-1.5 text-xs">
+              · ปัดซ้ายขวาเพื่อเปลี่ยนเรื่อง
+            </span>
           </div>
           <button
             type="button"
@@ -343,7 +407,10 @@ export function HskSentencesView({
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div
+          ref={storyScrollRef}
+          className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        >
           <div className="mx-auto w-full max-w-xl px-4 py-5 sm:px-6">
             <div className="mb-5">
               <StoryTitle
@@ -355,6 +422,8 @@ export function HskSentencesView({
                 showSentenceThai={showSentenceThai}
                 fontSize={fontSize}
                 large
+                enableGloss
+                onSpeak={showSound ? () => speak(openCard.title) : undefined}
               />
               <p className="mt-1.5 text-xs text-muted-foreground">
                 {openCard.sentences.length} ประโยค
@@ -645,6 +714,8 @@ function StoryTitle({
   showSentenceThai,
   fontSize,
   large = false,
+  enableGloss = false,
+  onSpeak,
 }: {
   title: string;
   titleThai?: string;
@@ -654,6 +725,8 @@ function StoryTitle({
   showSentenceThai: boolean;
   fontSize: number;
   large?: boolean;
+  enableGloss?: boolean;
+  onSpeak?: () => void;
 }) {
   const tokens = useMemo(() => segmentChinese(title, vocab), [title, vocab]);
   const showTable = showPinyin || showWordThai;
@@ -661,113 +734,141 @@ function StoryTitle({
   const pinyinMax = Math.max(7, Math.round(titlePx * 0.48));
   const thaiMax = Math.max(7, Math.round(titlePx * 0.5));
   const glossPx = Math.max(11, Math.round(titlePx * 0.55));
-  const gloss =
+  const glossText =
     titleThai?.trim() ||
     tokens
       .filter((t) => t.isWord && t.thai)
       .map((t) => t.thai)
       .join("");
-
-  if (!showTable && !showSentenceThai) {
-    return (
-      <div
-        className="font-semibold leading-snug tracking-tight"
-        style={{ fontSize: `${titlePx}px` }}
-      >
-        {title}
-      </div>
-    );
-  }
+  const gloss = useGlossPopup();
 
   return (
-    <div className="space-y-1.5">
+    <>
       <div
+        role={onSpeak ? "button" : undefined}
+        tabIndex={onSpeak ? 0 : undefined}
+        aria-label={onSpeak ? "อ่านชื่อเรื่อง" : undefined}
+        onClick={() => {
+          if (gloss.didLongPress()) return;
+          onSpeak?.();
+        }}
+        onKeyDown={(event) => {
+          if (onSpeak && (event.key === "Enter" || event.key === " ")) {
+            event.preventDefault();
+            onSpeak();
+          }
+        }}
         className={cn(
-          "flex flex-wrap",
-          showTable
-            ? "content-end items-stretch gap-0"
-            : "content-end items-end gap-x-0 gap-y-1",
+          showTable || showSentenceThai
+            ? "space-y-1.5"
+            : "font-semibold leading-snug tracking-tight",
+          onSpeak &&
+            "cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-ring",
         )}
+        style={
+          !showTable && !showSentenceThai
+            ? { fontSize: `${titlePx}px` }
+            : undefined
+        }
       >
-        {tokens.map((tok, ti) => {
-          if (!tok.isWord) {
+        <div
+          className={cn(
+            "flex flex-wrap",
+            showTable
+              ? "content-end items-stretch gap-0"
+              : "content-end items-end gap-x-0 gap-y-1",
+          )}
+        >
+          {tokens.map((tok, ti) => {
+            if (!tok.isWord) {
+              return (
+                <span
+                  key={ti}
+                  className={cn(
+                    "inline-flex items-end font-semibold leading-none",
+                    showTable
+                      ? "px-[2px] pb-1.5 text-muted-foreground"
+                      : "px-[1px]",
+                  )}
+                  style={{ fontSize: `${titlePx}px` }}
+                >
+                  {tok.text}
+                </span>
+              );
+            }
+
             return (
               <span
                 key={ti}
                 className={cn(
-                  "inline-flex items-end font-semibold leading-none",
+                  "relative inline-flex flex-col items-center",
                   showTable
-                    ? "px-[2px] pb-1.5 text-muted-foreground"
+                    ? "-ml-px -mt-px items-stretch border border-border/40 bg-muted/15 px-1 py-1"
                     : "px-[1px]",
+                  enableGloss &&
+                    "select-none [-webkit-touch-callout:none] [touch-action:manipulation]",
                 )}
-                style={{ fontSize: `${titlePx}px` }}
+                style={
+                  showTable
+                    ? {
+                        minWidth: `${Math.max(
+                          showWordThai ? 2.2 : 1.5,
+                          tok.text.length * 1.05,
+                        )}em`,
+                      }
+                    : undefined
+                }
+                {...(enableGloss
+                  ? gloss.bindWord({
+                      text: tok.text,
+                      pinyin: tok.pinyin,
+                      thai: tok.thai,
+                    })
+                  : {})}
               >
-                {tok.text}
+                {showPinyin ? (
+                  <span className="pointer-events-none mb-0.5 min-h-[0.75rem] w-full">
+                    <FitText
+                      text={tok.pinyin || "\u00a0"}
+                      maxPx={pinyinMax}
+                      minPx={5}
+                      lines={1}
+                      className="font-medium tracking-tight text-sky-800/80 dark:text-sky-200/80"
+                    />
+                  </span>
+                ) : null}
+                <span
+                  className="pointer-events-none text-center font-semibold leading-none text-foreground"
+                  style={{ fontSize: `${titlePx}px` }}
+                >
+                  {tok.text}
+                </span>
+                {showWordThai ? (
+                  <span className="pointer-events-none mt-0.5 min-h-[1.1rem] w-full">
+                    <FitText
+                      text={tok.thai || "\u00a0"}
+                      maxPx={thaiMax}
+                      minPx={5}
+                      lines={2}
+                      className="text-muted-foreground"
+                    />
+                  </span>
+                ) : null}
               </span>
             );
-          }
-
-          return (
-            <span
-              key={ti}
-              className={cn(
-                "relative inline-flex flex-col items-center",
-                showTable
-                  ? "-ml-px -mt-px items-stretch border border-border/40 bg-muted/15 px-1 py-1"
-                  : "px-[1px]",
-              )}
-              style={
-                showTable
-                  ? {
-                      minWidth: `${Math.max(
-                        showWordThai ? 2.2 : 1.5,
-                        tok.text.length * 1.05,
-                      )}em`,
-                    }
-                  : undefined
-              }
-            >
-              {showPinyin ? (
-                <span className="mb-0.5 min-h-[0.75rem] w-full">
-                  <FitText
-                    text={tok.pinyin || "\u00a0"}
-                    maxPx={pinyinMax}
-                    minPx={5}
-                    lines={1}
-                    className="font-medium tracking-tight text-sky-800/80 dark:text-sky-200/80"
-                  />
-                </span>
-              ) : null}
-              <span
-                className="text-center font-semibold leading-none text-foreground"
-                style={{ fontSize: `${titlePx}px` }}
-              >
-                {tok.text}
-              </span>
-              {showWordThai ? (
-                <span className="mt-0.5 min-h-[1.1rem] w-full">
-                  <FitText
-                    text={tok.thai || "\u00a0"}
-                    maxPx={thaiMax}
-                    minPx={5}
-                    lines={2}
-                    className="text-muted-foreground"
-                  />
-                </span>
-              ) : null}
-            </span>
-          );
-        })}
+          })}
+        </div>
+        {showSentenceThai && glossText ? (
+          <p
+            className="border-l-2 border-sky-300/70 pl-2 font-medium leading-snug text-foreground/80 dark:border-sky-700/70"
+            style={{ fontSize: `${glossPx}px` }}
+          >
+            {glossText}
+          </p>
+        ) : null}
       </div>
-      {showSentenceThai && gloss ? (
-        <p
-          className="border-l-2 border-sky-300/70 pl-2 font-medium leading-snug text-foreground/80 dark:border-sky-700/70"
-          style={{ fontSize: `${glossPx}px` }}
-        >
-          {gloss}
-        </p>
-      ) : null}
-    </div>
+      {enableGloss ? gloss.popup : null}
+    </>
   );
 }
 
@@ -797,113 +898,124 @@ function SentenceLine({
   const showTable = showPinyin || showWordThai;
   const pinyinMax = Math.max(7, Math.round(fontSize * 0.48));
   const thaiMax = Math.max(7, Math.round(fontSize * 0.5));
+  const gloss = useGlossPopup();
 
   return (
-    <li className="space-y-2">
-      <div className="flex items-center gap-2">
+    <li>
+      <div className="flex items-start gap-2">
         <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] font-semibold tabular-nums text-muted-foreground">
           {index}
         </span>
+
+        <div className="min-w-0 flex-1 space-y-2">
+          <div
+            className={cn(
+              "flex flex-wrap",
+              showTable
+                ? "content-end items-stretch gap-0"
+                : "content-end items-end gap-x-0 gap-y-2",
+              showSound && "cursor-pointer",
+            )}
+            onClick={() => {
+              if (gloss.didLongPress()) return;
+              if (showSound) speak(item.chinese);
+            }}
+          >
+            {tokens.map((tok, ti) => {
+              if (!tok.isWord) {
+                return (
+                  <span
+                    key={ti}
+                    className={cn(
+                      "inline-flex items-end font-medium leading-none",
+                      showTable
+                        ? "px-[2px] pb-2 text-muted-foreground"
+                        : "px-[1px] pb-[2px]",
+                    )}
+                    style={{ fontSize: `${fontSize}px` }}
+                  >
+                    {tok.text}
+                  </span>
+                );
+              }
+
+              return (
+                <span
+                  key={ti}
+                  className={cn(
+                    "relative inline-flex select-none flex-col items-center [-webkit-touch-callout:none] [touch-action:manipulation]",
+                    showTable
+                      ? "-ml-px -mt-px items-stretch border border-border/40 bg-muted/15 px-1.5 py-1.5"
+                      : "px-[1.5px]",
+                  )}
+                  style={
+                    showTable
+                      ? {
+                          minWidth: `${Math.max(
+                            showWordThai ? 2.6 : 1.75,
+                            tok.text.length * 1.15,
+                          )}em`,
+                        }
+                      : undefined
+                  }
+                  {...gloss.bindWord({
+                    text: tok.text,
+                    pinyin: tok.pinyin,
+                    thai: tok.thai,
+                  })}
+                >
+                  {showPinyin ? (
+                    <span className="pointer-events-none mb-0.5 min-h-[0.9rem] w-full">
+                      <FitText
+                        text={tok.pinyin || "\u00a0"}
+                        maxPx={pinyinMax}
+                        minPx={5.5}
+                        lines={1}
+                        className="font-medium tracking-tight text-sky-800/80 dark:text-sky-200/80"
+                      />
+                    </span>
+                  ) : null}
+                  <span
+                    className="pointer-events-none text-center font-medium leading-none text-foreground"
+                    style={{ fontSize: `${fontSize}px` }}
+                  >
+                    {tok.text}
+                  </span>
+                  {showWordThai ? (
+                    <span className="pointer-events-none mt-1 min-h-[1.4rem] w-full">
+                      <FitText
+                        text={tok.thai || "\u00a0"}
+                        maxPx={thaiMax}
+                        minPx={5}
+                        lines={2}
+                        className="text-muted-foreground"
+                      />
+                    </span>
+                  ) : null}
+                </span>
+              );
+            })}
+          </div>
+
+          {showSentenceThai && item.thai ? (
+            <p className="border-l-2 border-sky-300/70 pl-3 text-[0.95rem] leading-relaxed text-muted-foreground dark:border-sky-700/70">
+              {item.thai}
+            </p>
+          ) : null}
+        </div>
+
         {showSound ? (
           <button
             type="button"
             aria-label="อ่านเสียง"
             onClick={() => speak(item.chinese)}
-            className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground touch-manipulation"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground touch-manipulation"
           >
             <Volume2 className="size-3.5" />
           </button>
         ) : null}
       </div>
-
-      <div
-        className={cn(
-          "flex flex-wrap",
-          showTable
-            ? "content-end items-stretch gap-0"
-            : "content-end items-end gap-x-0 gap-y-2",
-          showSound && "cursor-pointer",
-        )}
-        onClick={() => {
-          if (showSound) speak(item.chinese);
-        }}
-      >
-        {tokens.map((tok, ti) => {
-          if (!tok.isWord) {
-            return (
-              <span
-                key={ti}
-                className={cn(
-                  "inline-flex items-end font-medium leading-none",
-                  showTable
-                    ? "px-[2px] pb-2 text-muted-foreground"
-                    : "px-[1px] pb-[2px]",
-                )}
-                style={{ fontSize: `${fontSize}px` }}
-              >
-                {tok.text}
-              </span>
-            );
-          }
-
-          return (
-            <span
-              key={ti}
-              className={cn(
-                "relative inline-flex flex-col items-center",
-                showTable
-                  ? "-ml-px -mt-px items-stretch border border-border/40 bg-muted/15 px-1.5 py-1.5"
-                  : "px-[1.5px]",
-              )}
-              style={
-                showTable
-                  ? {
-                      minWidth: `${Math.max(
-                        showWordThai ? 2.6 : 1.75,
-                        tok.text.length * 1.15,
-                      )}em`,
-                    }
-                  : undefined
-              }
-            >
-              {showPinyin ? (
-                <span className="mb-0.5 min-h-[0.9rem] w-full">
-                  <FitText
-                    text={tok.pinyin || "\u00a0"}
-                    maxPx={pinyinMax}
-                    minPx={5.5}
-                    lines={1}
-                    className="font-medium tracking-tight text-sky-800/80 dark:text-sky-200/80"
-                  />
-                </span>
-              ) : null}
-              <span
-                className="text-center font-medium leading-none text-foreground"
-                style={{ fontSize: `${fontSize}px` }}
-              >
-                {tok.text}
-              </span>
-              {showWordThai ? (
-                <span className="mt-1 min-h-[1.4rem] w-full">
-                  <FitText
-                    text={tok.thai || "\u00a0"}
-                    maxPx={thaiMax}
-                    minPx={5}
-                    lines={2}
-                    className="text-muted-foreground"
-                  />
-                </span>
-              ) : null}
-            </span>
-          );
-        })}
-      </div>
-
-      {showSentenceThai && item.thai ? (
-        <p className="border-l-2 border-sky-300/70 pl-3 text-[0.95rem] leading-relaxed text-muted-foreground dark:border-sky-700/70">
-          {item.thai}
-        </p>
-      ) : null}
+      {gloss.popup}
     </li>
   );
 }

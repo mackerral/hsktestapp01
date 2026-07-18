@@ -1,6 +1,6 @@
 Chinese	Pinyin	POS	Thai
 爱	ài	v	รัก
-吧	ba	part	นะ
+吧	ba	part	เถอะ,ไหม
 八	bā	num	แปด
 爸爸	bàba	n	พ่อ
 百	bǎi	num	ร้อย
@@ -12,8 +12,8 @@ Chinese	Pinyin	POS	Thai
 边	biān	n	ด้าน/ข้าง
 病	bìng	n/v	โรค/ป่วย
 不	bù	adv	ไม่
-不客气	bú kèqi	expr	ไม่เป็นไร
-不要	búyào	adv	อย่า
+不客气	bú kèqi	expr	ด้วยความยินดี
+不要	búyào	adv	อย่า,ไม่เอา
 菜	cài	n	ผัก/อาหาร
 茶	chá	n	ชา
 唱	chàng	v	ร้องเพลง
@@ -53,7 +53,7 @@ Chinese	Pinyin	POS	Thai
 房间	fángjiān	n	ห้อง
 非常	fēicháng	adv	อย่างยิ่ง/มาก
 飞机	fēijī	n	เครื่องบิน
-分	fēn	mw	นาที/เปอร์เซ็นต์
+分	fēn	mw	นาที/แต้ม/เปอร์เซ็นต์
 分钟	fēnzhōng	mw	นาที
 高兴	gāoxìng	adj	ดีใจ
 个	gè	mw	อัน/คน
@@ -65,7 +65,7 @@ Chinese	Pinyin	POS	Thai
 狗	gǒu	n	สุนัข
 贵	guì	adj	แพง
 国	guó	n	ประเทศ
-还	hái	adv	ยังคง/ด้วย
+还	hái	adv	ยังคง/อีก
 孩子	háizi	n	เด็ก
 汉语	Hànyǔ	n	ภาษาจีน
 汉字	Hànzì	n	อักษรจีน
@@ -85,10 +85,10 @@ Chinese	Pinyin	POS	Thai
 几	jǐ	pron/num	กี่
 家	jiā	n/mw	บ้าน/ครอบครัว
 见	jiàn	v	พบ/เห็น
-件	jiàn	mw	ชิ้น (เสื้อผ้า)
-叫	jiào	v	ชื่อ/เรียก
+件	jiàn	mw	ชิ้น (ลักษณนาม เสื้อผ้า)
+叫	jiào	v	ชื่อว่า/เรียก
 饺子	jiǎozi	n	เกี๊ยว
-家人	jiārén	n	คนในครอบครัว
+家人	Jaren	n	คนในครอบครัว
 鸡蛋	jīdàn	n	ไข่ไก่
 姐姐	jiějie	n	พี่สาว
 今年	jīnnián	n	ปีนี้
@@ -98,12 +98,12 @@ Chinese	Pinyin	POS	Thai
 开	kāi	v	เปิด
 开车	kāichē	v	ขับรถ
 看	kàn	v	ดู/อ่าน
-看病	kànbìng	v	รักษาโรค/ไปหาหมอ
+看病	kànbìng	v	ไปหาหมอ
 看见	kànjiàn	v	มองเห็น
 课	kè	n	บทเรียน/ชั้นเรียน
-可以	kěyǐ	v/adj	ได้/อนุญาต
+可以	kěyǐ	v/adj	ได้/สามารถ
 口	kǒu	n/mw	ปาก/คน (ครอบครัว)
-块	kuài	mw	บาท/ชิ้น
+块	kuài	mw	หยวน
 来	lái	v	มา
 老师	lǎoshī	n	ครู
 了	le	part	แล้ว
@@ -118,11 +118,11 @@ Chinese	Pinyin	POS	Thai
 妈妈	māma	n	แม่
 忙	máng	adj/v	ยุ่ง
 猫	māo	n	แมว
-没关系	méi guānxi	expr	ไม่เป็นไร
+没关系	méiguānxi	expr	ไม่เป็นไร(ใช้ตอบ:เมื่อมีคนขอโทษ)
+没事	méishì	v	ไม่เป็นไร(ใช้ตอบ:เมื่อมีคนขอโทษ/เมื่อมีคนถามว่าเป็นอะไรไหม)
+没有	méiyǒu	v/adv	ไม่มี
 妹妹	mèimei	n	น้องสาว
-没事	méishì	v	ไม่เป็นไร
-没（有）	méi(yǒu)	v/adv	ไม่มี
-们	men	suffix	พวก (คำเติมพหูพจน์)
+们	men	suffix	พวก
 面包	miànbāo	n	ขนมปัง
 面条儿	miàntiáor	n	เส้นก๋วยเตี๋ยว
 米饭	mǐfàn	n	ข้าวสวย
@@ -161,7 +161,7 @@ Chinese	Pinyin	POS	Thai
 七	qī	num	เจ็ด
 前	qián	n	หน้า
 钱	qián	n	เงิน
-千	qiān	num	พัน
+千	qiān	num	พัน (จำนวน)
 起床	qǐchuáng	v	ตื่นนอน
 请	qǐng	v	กรุณา/เชิญ
 请问	qǐngwèn	v	ขอถาม
@@ -258,13 +258,13 @@ Chinese	Pinyin	POS	Thai
 衣服	yīfu	n	เสื้อผ้า
 医生	yīshēng	n	หมอ
 一下	yíxià	num+mw	สักครู่/ลอง
-一些	yìxiē	num+mw	บ้าง/บางส่วน
+一些	yìxiē	num+mw	บางส่วน/จำนวนหนึ่ง
 医院	yīyuàn	n	โรงพยาบาล
 椅子	yǐzi	n	เก้าอี้
 有	yǒu	v	มี
-有的	yǒude	pron	บางคน/บางส่วน
-有些	yǒuxiē	pron/adv	บาง
-有（一）点儿	yǒu(yì)diǎnr	adv	นิดหน่อย/เล็กน้อย
+有的	yǒude	pron	บางคน,บางอัน   
+有些	yǒuxiē	pron/adv	บางส่วน / ค่อนข้าง
+有一点儿	yǒuyìdiǎnr	adv	นิดหน่อย/เล็กน้อย
 雨	yǔ	n	ฝน
 元	yuán	mw	หยวน
 月	yuè	n	เดือน
@@ -297,5 +297,5 @@ Chinese	Pinyin	POS	Thai
 字	zì	n	อักษร/ตัวหนังสือ
 坐	zuò	v	นั่ง
 做	zuò	v	ทำ
-做饭	zuò fàn	expr	ทำอาหาร
+做饭	zuòfàn	expr	ทำอาหาร
 昨天	zuótiān	n	เมื่อวาน

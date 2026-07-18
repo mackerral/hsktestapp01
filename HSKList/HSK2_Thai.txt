@@ -1,6 +1,6 @@
 Chinese	Pinyin	POS	Thai
 啊	a	part	อ้อ/อ่า
-爱好	àihào	v/n	งานอดิเรก
+爱好	àihào	v/n	งานอดิเรก/ความชอบ
 白色	báisè	n	สีขาว
 班	bān	n/mw	ชั้นเรียน
 帮	bāng	v	ช่วย
@@ -8,9 +8,9 @@ Chinese	Pinyin	POS	Thai
 包	bāo	v/n/mw	ห่อ/กระเป๋า
 本子	běnzi	n	สมุด
 比	bǐ	v/prep	เปรียบเทียบ/กว่า
-笔	bǐ	n/mw	ปากกา/ดินสอ
+笔	bǐ	n/mw	ปากกา/ดินสอ (หน่วยวัดเครื่องเขียน)
 别	bié	adv	อย่า
-不好意思	bù hǎoyìsi	expr	เขิน/ขอโทษ
+不好意思	bùhǎoyìsi	expr	ขอโทษ
 不错	búcuò	adj	ไม่เลว/ดีทีเดียว
 长	cháng	adj	ยาว
 车站	chēzhàn	n	สถานีรถ
@@ -18,20 +18,20 @@ Chinese	Pinyin	POS	Thai
 床	chuáng	n	เตียง
 出国	chūguó	v	ออกนอกประเทศ
 出来	chūlái	v	ออกมา
-出门	chūmén	v	ออกจากบ้าน
+出门	chūmén	v	ออกจากบ้าน/ออกไปข้างนอก
 出去	chūqù	v	ออกไป
-词	cí	n	คำ
+词	cí	n	คำศัพท์
 次	cì	mw	ครั้ง
 从	cóng	prep	จาก
 从小	cóngxiǎo	adv	ตั้งแต่เด็ก
 错	cuò	adj	ผิด
 打	dǎ	v	ตี/ทำ
-打车	dǎchē	v	นั่งแท็กซี่
+打车	dǎchē	v	เรียกแท็กซี่/เรียกรถ
 打开	dǎkāi	v	เปิด
 但	dàn	conj	แต่
 但是	dànshì	conj	แต่ว่า
-得	de	part	(particle หลังกริยา)
-地	de	part	(particle ขยายกริยา)
+得	de	part	ได้/จน(แสดงระดับหรือผลการกระทำ เช่น 做得很好:ทำได้ดีมาก)
+地	de	part	อย่าง/แบบ(เช่น 慢慢地走:เดินอย่างช้าๆ)
 等	děng	v/prep	รอ
 点	diǎn	v/n/mw	สั่ง (อาหาร)/จุด
 地铁	dìtiě	n	รถไฟใต้ดิน

@@ -258,62 +258,69 @@ export function QuizSession({
         />
       </div>
 
-      <p className="mt-4 text-center text-xs font-medium text-muted-foreground">
-        {title}
-      </p>
-      <div className="mt-6 flex flex-col items-center justify-center py-6 text-center sm:flex-1 sm:py-0">
-        <div className="text-4xl font-bold leading-tight sm:text-5xl">{q.prompt}</div>
-      </div>
-
-      {!choicesVisible ? (
-        <Button
-          className="mt-6 h-14 w-full text-base font-semibold"
-          onClick={() => setChoicesVisible(true)}
-        >
-          แตะเพื่อดูตัวเลือก
-        </Button>
-      ) : (
-        <div
-          className={cn(
-            "mt-6 grid gap-2",
-            q.choices.length >= 6 ? "grid-cols-2" : "grid-cols-1",
-          )}
-        >
-          {q.choices.map((choice) => {
-            const isAnswer = choice.text === q.answer;
-            const isPick = choice.text === selected;
-            return (
-              <button
-                key={choice.text}
-                type="button"
-                disabled={answered}
-                onClick={() => pick(choice)}
-                className={cn(
-                  "rounded-xl border-2 px-3 py-3 text-base font-medium transition-colors sm:px-4",
-                  q.choices.length >= 6 ? "text-center" : "text-left",
-                  !answered && "hover:bg-muted",
-                  answered &&
-                    isAnswer &&
-                    "border-emerald-500 bg-emerald-50 text-emerald-900",
-                  answered &&
-                    isPick &&
-                    !isAnswer &&
-                    "border-rose-500 bg-rose-50 text-rose-900",
-                  answered && !isAnswer && !isPick && "opacity-50",
-                )}
-              >
-                {choice.text}
-              </button>
-            );
-          })}
+      <div className="flex flex-1 flex-col justify-center py-5">
+        <p className="text-center text-xs font-medium text-muted-foreground">
+          {title}
+        </p>
+        <div className="mt-6 flex flex-col items-center justify-center py-6 text-center">
+          <div className="text-4xl font-bold leading-tight sm:text-5xl">
+            {q.prompt}
+          </div>
         </div>
-      )}
 
-      {answered && (
-        <Button className="mt-4 h-12 w-full text-base font-semibold" onClick={next}>
-          {index >= questions.length - 1 ? "ดูผลคะแนน" : "ข้อต่อไป"}
-        </Button>
-      )}
+        {!choicesVisible ? (
+          <Button
+            className="mt-6 h-14 w-full text-base font-semibold"
+            onClick={() => setChoicesVisible(true)}
+          >
+            แตะเพื่อดูตัวเลือก
+          </Button>
+        ) : (
+          <div
+            className={cn(
+              "mt-6 grid gap-2",
+              q.choices.length >= 6 ? "grid-cols-2" : "grid-cols-1",
+            )}
+          >
+            {q.choices.map((choice) => {
+              const isAnswer = choice.text === q.answer;
+              const isPick = choice.text === selected;
+              return (
+                <button
+                  key={choice.text}
+                  type="button"
+                  disabled={answered}
+                  onClick={() => pick(choice)}
+                  className={cn(
+                    "rounded-xl border-2 px-3 py-3 text-base font-medium transition-colors sm:px-4",
+                    q.choices.length >= 6 ? "text-center" : "text-left",
+                    !answered && "hover:bg-muted",
+                    answered &&
+                      isAnswer &&
+                      "border-emerald-500 bg-emerald-50 text-emerald-900",
+                    answered &&
+                      isPick &&
+                      !isAnswer &&
+                      "border-rose-500 bg-rose-50 text-rose-900",
+                    answered && !isAnswer && !isPick && "opacity-50",
+                  )}
+                >
+                  {choice.text}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {answered && (
+          <Button
+            className="mt-4 h-12 w-full text-base font-semibold"
+            onClick={next}
+          >
+            {index >= questions.length - 1 ? "ดูผลคะแนน" : "ข้อต่อไป"}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

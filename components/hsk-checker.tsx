@@ -434,11 +434,13 @@ export function HskChecker({
         <div className="mx-auto w-full max-w-5xl px-3 py-3 sm:px-6 sm:py-4">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <div className="min-w-0">
-              <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
-                {listLabel}
-              </div>
-              <div className="truncate text-sm font-medium text-muted-foreground sm:text-base">
-                {knownCount}/{words.length}
+              <div className="flex min-w-0 items-baseline gap-2">
+                <div className="truncate text-base font-semibold tracking-tight sm:text-lg">
+                  {listLabel}
+                </div>
+                <div className="shrink-0 text-sm font-medium text-muted-foreground sm:text-base">
+                  {knownCount}/{words.length} คำ
+                </div>
               </div>
             </div>
           </div>

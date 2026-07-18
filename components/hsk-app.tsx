@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type TouchEvent } from "react";
 import { HskMenu } from "@/components/hsk-menu";
 import { HskChecker } from "@/components/hsk-checker";
 import { QuizMenu, type QuizModeId, type QuizSettings } from "@/components/quiz-menu";
@@ -14,11 +14,13 @@ import type { ChineseStory } from "@/lib/chinese-stories";
 import type { SentenceLevelGroup } from "@/lib/sentences";
 
 const PAGES = [
-  { id: 0, label: "HSK Tracker", short: "HSK" },
+  { id: 0, label: "HSK Tracker", menuLabel: "HSK Tracker" },
   // Hidden for now: Quiz รวม (1), HSK Reader (2)
-  { id: 3, label: "รวมประโยค", short: "รวมประโยค" },
-  { id: 4, label: "แจกไฟล์", short: "แจกไฟล์" },
+  { id: 3, label: "รวมประโยค", menuLabel: "ประโยค" },
+  { id: 4, label: "แจกไฟล์", menuLabel: "ห้องสมุด" },
 ] as const;
+
+type MainPageId = (typeof PAGES)[number]["id"];
 
 type ActiveQuiz = {
   preset: QuizModeId;
@@ -46,6 +48,8 @@ export function HskApp({
   // 0 = HSK Tracker, 1 = Quiz, 2 = HSK Reader, 3 = รวมประโยค, 4 = แจกไฟล์
   const [page, setPage] = useState(0);
   const [storageReady, setStorageReady] = useState(false);
+  const [pageDirection, setPageDirection] = useState<"left" | "right">("left");
+  const pageSwipeStart = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     resetHskStorageIfNeeded();
@@ -126,67 +130,134 @@ export function HskApp({
     );
   }
 
+  function navigateToMainPage(nextPage: MainPageId) {
+    const currentIndex = PAGES.findIndex((item) => item.id === page);
+    const nextIndex = PAGES.findIndex((item) => item.id === nextPage);
+    if (currentIndex === nextIndex) return;
+
+    setPageDirection(nextIndex > currentIndex ? "left" : "right");
+    setPage(nextPage);
+    if (nextPage !== 3) setActiveSentenceLevel(null);
+    setActiveReaderSetId(null);
+  }
+
+  function handlePageTouchStart(event: TouchEvent<HTMLDivElement>) {
+    const target = event.target as Element;
+    if (target.closest('[role="dialog"], input, textarea, select')) {
+      pageSwipeStart.current = null;
+      return;
+    }
+
+    const touch = event.touches[0];
+    if (!touch) return;
+    pageSwipeStart.current = { x: touch.clientX, y: touch.clientY };
+  }
+
+  function handlePageTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const start = pageSwipeStart.current;
+    pageSwipeStart.current = null;
+    if (!start) return;
+
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (
+      Math.abs(deltaX) < 60 ||
+      Math.abs(deltaX) <= Math.abs(deltaY) * 1.25
+    ) {
+      return;
+    }
+
+    const currentIndex = PAGES.findIndex((item) => item.id === page);
+    if (currentIndex < 0) return;
+
+    const nextIndex = deltaX < 0 ? currentIndex + 1 : currentIndex - 1;
+    const nextPage = PAGES[nextIndex];
+    if (nextPage) navigateToMainPage(nextPage.id);
+  }
+
   return (
     <div className="flex h-dvh flex-col overflow-hidden">
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {page === 0 && (
-          <HskMenu wordsByList={wordsByList} onSelectList={setActiveList} />
-        )}
-        {page === 1 && (
-          <QuizMenu
-            wordsByList={wordsByList}
-            onStart={(preset, title, settings) =>
-              setActiveQuiz({
-                preset,
-                title,
-                settings,
-                returnToList: null,
-              })
-            }
-          />
-        )}
-        {page === 2 && (
-          <HskReaderMenu
-            stories={stories}
-            wordsByList={wordsByList}
-            activeSetId={activeReaderSetId}
-            onSelectSet={setActiveReaderSetId}
-            onSelectStory={setActiveStoryId}
-          />
-        )}
-        {page === 3 && (
-          <HskSentencesView
-            groups={sentenceGroups}
-            wordsByList={wordsByList}
-            activeLevel={null}
-            onSelectLevel={setActiveSentenceLevel}
-          />
-        )}
-        {page === 4 && <HskFilesView wordsByList={wordsByList} />}
+      <div
+        className="min-h-0 flex-1 touch-pan-y overflow-y-auto"
+        onTouchStart={handlePageTouchStart}
+        onTouchEnd={handlePageTouchEnd}
+        onTouchCancel={() => {
+          pageSwipeStart.current = null;
+        }}
+      >
+        <div
+          key={page}
+          className={cn(
+            "flex min-h-full w-full items-center justify-center animate-in fade-in-0 duration-300",
+            pageDirection === "left"
+              ? "slide-in-from-right-8"
+              : "slide-in-from-left-8",
+          )}
+        >
+          {page === 0 && (
+            <HskMenu wordsByList={wordsByList} onSelectList={setActiveList} />
+          )}
+          {page === 1 && (
+            <QuizMenu
+              wordsByList={wordsByList}
+              onStart={(preset, title, settings) =>
+                setActiveQuiz({
+                  preset,
+                  title,
+                  settings,
+                  returnToList: null,
+                })
+              }
+            />
+          )}
+          {page === 2 && (
+            <HskReaderMenu
+              stories={stories}
+              wordsByList={wordsByList}
+              activeSetId={activeReaderSetId}
+              onSelectSet={setActiveReaderSetId}
+              onSelectStory={setActiveStoryId}
+            />
+          )}
+          {page === 3 && (
+            <HskSentencesView
+              groups={sentenceGroups}
+              wordsByList={wordsByList}
+              activeLevel={null}
+              onSelectLevel={setActiveSentenceLevel}
+            />
+          )}
+          {page === 4 && <HskFilesView wordsByList={wordsByList} />}
+        </div>
       </div>
 
       <footer className="sticky bottom-0 z-[70] shrink-0 border-t border-border/60 bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="flex justify-center px-2 pt-3 sm:px-3">
-          <div className="flex w-full max-w-xl items-center gap-0.5 rounded-full border border-border bg-background px-1 py-1.5 shadow-sm sm:gap-1.5 sm:px-2 sm:py-2">
+        <div className="flex justify-center px-2 pt-3">
+          <div
+            className="flex w-full max-w-sm items-center gap-1 rounded-full border border-border bg-background p-1.5 shadow-sm"
+            role="tablist"
+            aria-label="หน้าหลัก"
+          >
             {PAGES.map((item) => (
               <button
                 key={item.label}
                 type="button"
-                onClick={() => {
-                  setPage(item.id);
-                  if (item.id !== 3) setActiveSentenceLevel(null);
-                  // Reader tab is hidden; always clear nested reader set on nav.
-                  setActiveReaderSetId(null);
-                }}
+                role="tab"
+                aria-selected={page === item.id}
+                aria-label={item.label}
+                title={item.label}
+                onClick={() => navigateToMainPage(item.id)}
                 className={cn(
-                  "min-w-0 flex-1 rounded-full px-1 py-2.5 text-center text-[10px] font-medium leading-tight transition-colors sm:px-2 sm:py-3 sm:text-sm",
+                  "min-w-0 flex-1 rounded-full px-3 py-2 text-center text-xs font-medium transition-all duration-200 sm:text-sm",
                   page === item.id
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:bg-muted",
                 )}
               >
-                <span className="sm:hidden">{item.short}</span>
-                <span className="hidden sm:inline">{item.label}</span>
+                {item.menuLabel}
               </button>
             ))}
           </div>

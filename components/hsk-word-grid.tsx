@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
+import { useGlossPopup } from "@/components/word-gloss";
 
 type Status = "known" | "unknown";
 type StatusMap = Record<string, Status>;
@@ -52,6 +53,8 @@ export function HskWordGrid({
   pickMode?: boolean;
   highlightIndex?: number | null;
 }) {
+  const gloss = useGlossPopup();
+
   useEffect(() => {
     if (!window.speechSynthesis) return;
     loadVoices();
@@ -109,91 +112,112 @@ export function HskWordGrid({
   const type = typeByCol[columns] ?? typeByCol[4];
 
   return (
-    <div
-      className={cn(
-        "grid gap-2 sm:gap-3",
-        superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
-      )}
-    >
-      {words.map((word, i) => {
-        const id = ids[i];
-        const current: Status | "neutral" = status[id] ?? "neutral";
-        const hasPencil = Boolean(pencilMarks[id]);
+    <>
+      <div
+        className={cn(
+          "grid gap-2 sm:gap-3",
+          superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
+        )}
+      >
+        {words.map((word, i) => {
+          const id = ids[i];
+          const current: Status | "neutral" = status[id] ?? "neutral";
+          const hasPencil = Boolean(pencilMarks[id]);
+          const glossBind = gloss.bindWord({
+            text: word.chinese,
+            pinyin: word.pinyin,
+            thai: word.thai,
+          });
 
-        const handleClick = () => {
-          if (pickMode && onPick) {
-            onPick(i);
-            return;
-          }
-          if (superGrid && onHop) {
-            onHop(i);
-            return;
-          }
-          if (pencilMode && onPencilToggle) {
-            onPencilToggle(id);
+          const handleClick = () => {
+            if (gloss.didLongPress()) return;
+            if (pickMode && onPick) {
+              onPick(i);
+              return;
+            }
+            if (superGrid && onHop) {
+              onHop(i);
+              return;
+            }
+            if (pencilMode && onPencilToggle) {
+              onPencilToggle(id);
+              if (showSound) speak(word.chinese);
+              return;
+            }
+            onToggle(id);
             if (showSound) speak(word.chinese);
-            return;
-          }
-          onToggle(id);
-          if (showSound) speak(word.chinese);
-        };
+          };
 
-        if (superGrid) {
+          if (superGrid) {
+            return (
+              <button
+                key={id}
+                type="button"
+                title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
+                className={cn(
+                  "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:manipulation]",
+                  statusStyles[current],
+                  pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
+                  pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
+                )}
+                {...glossBind}
+                onClick={handleClick}
+              >
+                {hasPencil && (
+                  <Pencil
+                    className="absolute top-0.5 right-0.5 size-2.5 text-orange-600 dark:text-orange-300"
+                    aria-hidden
+                  />
+                )}
+                <span className="pointer-events-none block w-full truncate whitespace-nowrap px-0.5 text-center text-[9px] font-medium leading-none">
+                  {word.chinese}
+                </span>
+              </button>
+            );
+          }
+
           return (
             <button
               key={id}
               type="button"
-              title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
-              onClick={handleClick}
+              data-word-index={i}
               className={cn(
-                "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border [-webkit-tap-highlight-color:transparent]",
+                "relative flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:manipulation] scroll-mt-36 scroll-mb-28",
+                type.card,
                 statusStyles[current],
                 pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
-                pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
+                pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-300",
+                highlightIndex === i && "ring-2 ring-sky-500 ring-offset-2",
               )}
+              {...glossBind}
+              onClick={handleClick}
             >
               {hasPencil && (
-                <Pencil
-                  className="absolute top-0.5 right-0.5 size-2.5 text-orange-600 dark:text-orange-300"
-                  aria-hidden
-                />
+                <span
+                  className="pointer-events-none absolute top-1.5 right-1.5 inline-flex size-5 items-center justify-center rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
+                  aria-label="ดินสอ"
+                >
+                  <Pencil className="size-3" aria-hidden />
+                </span>
               )}
-              <span className="block w-full truncate whitespace-nowrap px-0.5 text-center text-[9px] font-medium leading-none">
+              <span className={cn("pointer-events-none", type.zh)}>
                 {word.chinese}
               </span>
+              {showPinyin && (
+                <span className={cn("pointer-events-none", type.py)}>
+                  {word.pinyin}
+                </span>
+              )}
+              {showTranslation && (
+                <span className={cn("pointer-events-none", type.th)}>
+                  {word.thai}
+                </span>
+              )}
             </button>
           );
-        }
-
-        return (
-          <button
-            key={id}
-            type="button"
-            data-word-index={i}
-            onClick={handleClick}
-            className={cn(
-              "relative flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent] scroll-mt-36 scroll-mb-28",
-              type.card,
-              statusStyles[current],
-              pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
-              pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-300",
-              highlightIndex === i && "ring-2 ring-sky-500 ring-offset-2",
-            )}
-          >
-            {hasPencil && (
-              <span
-                className="absolute top-1.5 right-1.5 inline-flex size-5 items-center justify-center rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
-                aria-label="ดินสอ"
-              >
-                <Pencil className="size-3" aria-hidden />
-              </span>
-            )}
-            <span className={type.zh}>{word.chinese}</span>
-            {showPinyin && <span className={type.py}>{word.pinyin}</span>}
-            {showTranslation && <span className={type.th}>{word.thai}</span>}
-          </button>
-        );
-      })}
-    </div>
+        })}
+      </div>
+      {gloss.popup}
+    </>
   );
 }

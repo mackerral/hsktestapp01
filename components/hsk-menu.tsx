@@ -69,11 +69,19 @@ export function HskMenu({
                     <div className="text-base font-semibold tracking-tight sm:text-lg">
                       {list.label}
                     </div>
-                    <div className="mt-0.5 truncate text-[11px] text-muted-foreground sm:text-xs">
-                      {progress.known}/{progress.total} จำได้
-                      {progress.needReview > 0
-                        ? ` · ${progress.needReview} จำไม่ได้`
-                        : ""}
+                    <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground sm:text-xs">
+                      <div>
+                        {progress.known}/{progress.total} จำได้
+                        {progress.needReview > 0
+                          ? ` · ${progress.needReview} จำไม่ได้`
+                          : ""}
+                      </div>
+                      <div>
+                        {progress.total -
+                          progress.known -
+                          progress.needReview}{" "}
+                        รอเรียน
+                      </div>
                     </div>
                   </div>
                   <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-foreground sm:size-5" />
