@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ArrowUp, Dices, Download, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -78,7 +78,7 @@ const A4_WIDTH_PX = 794;
 const A4_HEIGHT_PX = 1123;
 const PREVIEW_SCALE = 0.38;
 
-/** Hex-only — html2canvas cannot parse Tailwind v4 lab()/oklch(). */
+/** Hex-only print colors (compatible with PDF canvas export). */
 const C = {
   ink: "#171717",
   muted: "#737373",
@@ -92,64 +92,27 @@ const C = {
 } as const;
 
 type FontPreset = {
-  id: "S" | "M" | "L" | "XL";
-  label: string;
   chinese: number;
   secondary: number;
   index: number;
   header: number;
-  /** Total words per A4 page (2 columns). */
+  /** Words per A4 page when using 2 columns. */
   wordsPerPage: number;
   rowGap: number;
   rowPadY: number;
 };
 
-const FONT_PRESETS: FontPreset[] = [
-  {
-    id: "S",
-    label: "เล็ก",
-    chinese: 13,
-    secondary: 11,
-    index: 9,
-    header: 9,
-    wordsPerPage: 48,
-    rowGap: 4,
-    rowPadY: 3,
-  },
-  {
-    id: "M",
-    label: "กลาง",
-    chinese: 15,
-    secondary: 12,
-    index: 10,
-    header: 10,
-    wordsPerPage: 40,
-    rowGap: 5,
-    rowPadY: 4,
-  },
-  {
-    id: "L",
-    label: "ใหญ่",
-    chinese: 17,
-    secondary: 13,
-    index: 10,
-    header: 10,
-    wordsPerPage: 32,
-    rowGap: 6,
-    rowPadY: 5,
-  },
-  {
-    id: "XL",
-    label: "ใหญ่มาก",
-    chinese: 20,
-    secondary: 14,
-    index: 11,
-    header: 11,
-    wordsPerPage: 26,
-    rowGap: 7,
-    rowPadY: 6,
-  },
-];
+const FONT_S: FontPreset = {
+  chinese: 13,
+  secondary: 11,
+  index: 9,
+  header: 9,
+  wordsPerPage: 48,
+  rowGap: 4,
+  rowPadY: 3,
+};
+
+type ColumnCount = 2 | 3;
 
 function chunkWords<T>(items: T[], size: number): T[][] {
   const pages: T[][] = [];
@@ -159,14 +122,22 @@ function chunkWords<T>(items: T[], size: number): T[][] {
   return pages.length ? pages : [[]];
 }
 
+function splitColumns<T>(items: T[], columnCount: ColumnCount): T[][] {
+  const size = Math.ceil(items.length / columnCount) || 1;
+  return Array.from({ length: columnCount }, (_, index) =>
+    items.slice(index * size, (index + 1) * size),
+  );
+}
+
 function rowGridStyle(showStatus: boolean): CSSProperties {
   return {
     display: "grid",
+    // Fixed chinese / pinyin tracks so pinyin starts on one vertical line.
     gridTemplateColumns: showStatus
-      ? "16px 28px minmax(0,0.95fr) minmax(0,1.15fr) minmax(0,1.3fr)"
-      : "28px minmax(0,0.95fr) minmax(0,1.15fr) minmax(0,1.3fr)",
-    columnGap: 6,
-    alignItems: "center",
+      ? "14px 20px 2.6em 4.8em minmax(0,1fr)"
+      : "20px 2.6em 4.8em minmax(0,1fr)",
+    columnGap: 8,
+    alignItems: "start",
   };
 }
 
@@ -218,10 +189,12 @@ function FieldCell({
         style={{
           display: "block",
           minWidth: 0,
-          whiteSpace: "nowrap",
-          lineHeight: 1.55,
-          paddingTop: 2,
-          paddingBottom: 2,
+          whiteSpace: "normal",
+          overflowWrap: "anywhere",
+          wordBreak: "break-word",
+          lineHeight: 1.45,
+          paddingTop: 1,
+          paddingBottom: 1,
           color: C.ink,
           fontSize,
           fontWeight: emphasize ? 600 : 400,
@@ -238,7 +211,7 @@ function FieldCell({
         boxSizing: "border-box",
         width: "100%",
         height: Math.round(fontSize * 1.35),
-        marginTop: 2,
+        marginTop: 1,
       }}
       aria-hidden
     />
@@ -272,9 +245,10 @@ function WordRow({
       <span
         style={{
           fontSize: font.index,
-          lineHeight: 1.55,
+          lineHeight: 1.45,
           fontVariantNumeric: "tabular-nums",
           color: C.faint,
+          paddingTop: 2,
         }}
       >
         {index}
@@ -299,33 +273,6 @@ function WordRow({
   );
 }
 
-function ColumnHeader({
-  font,
-  showStatus,
-}: {
-  font: FontPreset;
-  showStatus: boolean;
-}) {
-  return (
-    <div
-      style={{
-        ...rowGridStyle(showStatus),
-        marginBottom: 6,
-        fontSize: font.header,
-        lineHeight: 1.55,
-        fontWeight: 600,
-        color: C.faint,
-      }}
-    >
-      {showStatus && <span />}
-      <span>#</span>
-      <span>汉字</span>
-      <span />
-      <span />
-    </div>
-  );
-}
-
 function A4Page({
   items,
   pageIndex,
@@ -343,13 +290,12 @@ function A4Page({
   show: Record<FieldKey, boolean>;
   startIndex: number;
   font: FontPreset;
-  columnCount: 1 | 2;
+  columnCount: ColumnCount;
   listLabel: string;
   showStatus: boolean;
 }) {
-  const mid = columnCount === 2 ? Math.ceil(items.length / 2) : items.length;
-  const left = items.slice(0, mid);
-  const right = columnCount === 2 ? items.slice(mid) : [];
+  const columns = splitColumns(items, columnCount);
+  const columnSize = Math.ceil(items.length / columnCount) || 1;
   const visibleLabel =
     FIELDS.filter((f) => show[f.key])
       .map((f) => f.short)
@@ -358,7 +304,6 @@ function A4Page({
   function renderColumn(col: DrillItem[], offset: number, keyPrefix: string) {
     return (
       <div style={{ flex: 1, minWidth: 0 }}>
-        <ColumnHeader font={font} showStatus={showStatus} />
         <div
           style={{
             display: "flex",
@@ -420,17 +365,18 @@ function A4Page({
           >
             HSK Tracker · {listLabel}
           </div>
-          <div
-            style={{
-              marginTop: 4,
-              fontSize: 11,
-              lineHeight: 1.4,
-              color: C.muted,
-            }}
-          >
-            ช่องว่าง = ส่วนที่ซ่อนไว้ ให้เขียนเติมเอง
-            {showStatus ? " · จุดสี = สถานะ" : ""}
-          </div>
+          {showStatus ? (
+            <div
+              style={{
+                marginTop: 4,
+                fontSize: 11,
+                lineHeight: 1.4,
+                color: C.muted,
+              }}
+            >
+              จุดสี = สถานะ
+            </div>
+          ) : null}
         </div>
         <div
           style={{
@@ -442,8 +388,7 @@ function A4Page({
         >
           <div>แสดง: {visibleLabel}</div>
           <div style={{ marginTop: 2, fontVariantNumeric: "tabular-nums" }}>
-            หน้า {pageIndex + 1}/{pageCount} · {columnCount} คอลัมน์ · ตัวอักษ{" "}
-            {font.id}
+            หน้า {pageIndex + 1}/{pageCount} · {columnCount} คอลัมน์
           </div>
         </div>
       </header>
@@ -452,24 +397,25 @@ function A4Page({
         style={{
           display: "flex",
           flex: 1,
-          gap: 14,
+          gap: columnCount === 3 ? 10 : 14,
           alignItems: "flex-start",
         }}
       >
-        {renderColumn(left, 0, "L")}
-        {columnCount === 2 && (
-          <>
-            <div
-              style={{
-                width: 1,
-                alignSelf: "stretch",
-                backgroundColor: C.line,
-                flexShrink: 0,
-              }}
-            />
-            {renderColumn(right, mid, "R")}
-          </>
-        )}
+        {columns.map((col, columnIndex) => (
+          <div key={`col-wrap-${columnIndex}`} style={{ display: "contents" }}>
+            {columnIndex > 0 ? (
+              <div
+                style={{
+                  width: 1,
+                  alignSelf: "stretch",
+                  backgroundColor: C.line,
+                  flexShrink: 0,
+                }}
+              />
+            ) : null}
+            {renderColumn(col, columnIndex * columnSize, `C${columnIndex}`)}
+          </div>
+        ))}
       </div>
 
       <footer
@@ -514,10 +460,10 @@ export function CustomDrillSheet({
   const [statusMap, setStatusMap] = useState<StatusMap>({});
   const [shuffleOn, setShuffleOn] = useState(false);
   const [shuffleSeed, setShuffleSeed] = useState(1);
-  const [fontId, setFontId] = useState<FontPreset["id"]>("M");
-  const [columnCount, setColumnCount] = useState<1 | 2>(2);
+  const [columnCount, setColumnCount] = useState<ColumnCount>(2);
   const [showStatusInPrint, setShowStatusInPrint] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showJumpToDownload, setShowJumpToDownload] = useState(false);
   const pagesRef = useRef<HTMLDivElement>(null);
@@ -531,11 +477,11 @@ export function CustomDrillSheet({
     setShuffleOn(false);
   }, [listId]);
 
-  const font = FONT_PRESETS.find((p) => p.id === fontId) ?? FONT_PRESETS[1];
+  const font = FONT_S;
   const wordsPerPage =
-    columnCount === 2
-      ? font.wordsPerPage
-      : Math.max(8, Math.ceil(font.wordsPerPage / 2));
+    columnCount === 3
+      ? Math.round(font.wordsPerPage * 1.5)
+      : font.wordsPerPage;
   const visibleCount = FIELDS.filter((f) => show[f.key]).length;
 
   const statusCounts = useMemo(() => {
@@ -638,6 +584,7 @@ export function CustomDrillSheet({
   async function downloadPdf() {
     if (!pagesRef.current || busy) return;
     setBusy(true);
+    setPdfProgress(0);
     setError(null);
     try {
       const nodes = Array.from(
@@ -672,9 +619,10 @@ export function CustomDrillSheet({
         const img = canvas.toDataURL("image/jpeg", 0.95);
         if (i > 0) pdf.addPage();
         pdf.addImage(img, "JPEG", 0, 0, 210, 297, undefined, "FAST");
+        setPdfProgress(Math.round(((i + 1) / nodes.length) * 100));
       }
 
-      pdf.save(`${listId}-custom-drill-${font.id}.pdf`);
+      pdf.save(`${listId}-custom-drill.pdf`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "สร้าง PDF ไม่สำเร็จ");
     } finally {
@@ -878,11 +826,11 @@ export function CustomDrillSheet({
             <div className="mb-2 flex items-center justify-between text-sm">
               <span className="font-medium">จำนวนคอลัมน์</span>
               <span className="text-xs text-muted-foreground">
-                {columnCount} คอลัมน์
+                {columnCount} คอลัมน์ · ~{pages.length} หน้า
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {([1, 2] as const).map((n) => (
+              {([2, 3] as const).map((n) => (
                 <button
                   key={n}
                   type="button"
@@ -895,35 +843,6 @@ export function CustomDrillSheet({
                   )}
                 >
                   {n} คอลัมน์
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-border p-4">
-            <div className="mb-2 flex items-center justify-between text-sm">
-              <span className="font-medium">ขนาดตัวอักษร</span>
-              <span className="text-xs text-muted-foreground">
-                {font.label} · ~{pages.length} หน้า
-              </span>
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {FONT_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => setFontId(preset.id)}
-                  className={cn(
-                    "rounded-lg border px-2 py-2.5 text-center text-sm font-medium",
-                    fontId === preset.id
-                      ? "border-foreground bg-foreground text-background"
-                      : "border-border hover:bg-muted",
-                  )}
-                >
-                  {preset.id}
-                  <span className="mt-0.5 block text-[10px] font-normal opacity-80">
-                    {preset.label}
-                  </span>
                 </button>
               ))}
             </div>
@@ -988,6 +907,27 @@ export function CustomDrillSheet({
                 สร้างในเครื่อง · {selectedItems.length} คำ · ~{pages.length} หน้า
               </p>
             </div>
+            {busy ? (
+              <div className="space-y-1.5" aria-live="polite">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>กำลังสร้างไฟล์ PDF</span>
+                  <span className="tabular-nums">{pdfProgress}%</span>
+                </div>
+                <div
+                  className="h-2 overflow-hidden rounded-full bg-muted"
+                  role="progressbar"
+                  aria-label="ความคืบหน้าการสร้าง PDF"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={pdfProgress}
+                >
+                  <div
+                    className="h-full rounded-full bg-foreground transition-[width] duration-300"
+                    style={{ width: `${pdfProgress}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
           {selectedItems.length === 0 && (
             <p className="text-sm text-amber-700 dark:text-amber-300">

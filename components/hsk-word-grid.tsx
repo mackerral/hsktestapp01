@@ -5,7 +5,6 @@ import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
-import type { SentenceLevelGroup } from "@/lib/sentences";
 import { useGlossPopup } from "@/components/word-gloss";
 
 type Status = "known" | "unknown";
@@ -36,7 +35,6 @@ export function HskWordGrid({
   columns = 4,
   pickMode = false,
   highlightIndex = null,
-  sentenceGroups,
 }: {
   words: HskWord[];
   ids: string[];
@@ -54,9 +52,8 @@ export function HskWordGrid({
   columns?: number;
   pickMode?: boolean;
   highlightIndex?: number | null;
-  sentenceGroups?: SentenceLevelGroup[];
 }) {
-  const gloss = useGlossPopup(sentenceGroups);
+  const gloss = useGlossPopup();
 
   useEffect(() => {
     if (!window.speechSynthesis) return;

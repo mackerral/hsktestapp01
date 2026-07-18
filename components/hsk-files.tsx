@@ -5,10 +5,17 @@ import { CustomDrillSheet } from "@/components/custom-drill-sheet";
 import { HskWordMapSheet } from "@/components/hsk-word-map-sheet";
 import type { HskWord, ListId } from "@/lib/hsk-lists";
 
+const HSK_1_9_SUPERMAP_PDF_URL =
+  "https://pub-e48f991a086a412eadf434f9d6acae55.r2.dev/hsk1-9-words-visualized.pdf";
+const HSK_1_9_SUPERMAP_ICON_URL =
+  "https://pub-e48f991a086a412eadf434f9d6acae55.r2.dev/Screenshot%202026-07-19%20032745.jpg";
+
 export function HskFilesView({
   wordsByList,
 }: {
   wordsByList: Record<ListId, HskWord[]>;
+  /** Kept for route compatibility; interactive HSK 1–9 SuperMap is hidden. */
+  advancedWords?: string[];
 }) {
   const [openCustomDrill, setOpenCustomDrill] = useState(false);
   const [openWordMap, setOpenWordMap] = useState(false);
@@ -16,14 +23,12 @@ export function HskFilesView({
 
   const openSuperMap = () => {
     setWordMapProgress(5);
-    // Let the loading overlay paint before mounting the large map.
     requestAnimationFrame(() => setOpenWordMap(true));
   };
 
   const handleWordMapProgress = useCallback((progress: number) => {
     setWordMapProgress(progress);
     if (progress >= 100) {
-      // Keep 100% visible for one painted frame, then reveal the finished map.
       requestAnimationFrame(() => setWordMapProgress(null));
     }
   }, []);
@@ -67,6 +72,29 @@ export function HskFilesView({
               HSK 1–6 ทั้งชุดในหน้าเดียว · สีตามระดับ
             </div>
           </button>
+
+          <a
+            href={HSK_1_9_SUPERMAP_PDF_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
+          >
+            <div className="flex items-center gap-3">
+              <img
+                src={HSK_1_9_SUPERMAP_ICON_URL}
+                alt=""
+                className="size-12 shrink-0 rounded-md border border-border object-cover object-top sm:size-14"
+              />
+              <div className="min-w-0">
+                <div className="text-lg font-semibold tracking-tight sm:text-xl">
+                  HSK 3.0 1-9 Words SuperMap
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
+                  ไฟล์ PDF
+                </div>
+              </div>
+            </div>
+          </a>
         </div>
       </div>
 

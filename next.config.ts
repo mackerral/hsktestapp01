@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  outputFileTracingIncludes: {
+    "/api/strokes": ["./node_modules/hanzi-writer-data/*.json"],
+  },
 };
 
 export default nextConfig;

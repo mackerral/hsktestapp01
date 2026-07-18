@@ -3,30 +3,53 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
-import html2canvas from "html2canvas";
+import html2canvas from "html2canvas-pro";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   HSK_LISTS,
   type HskWord,
   type ListId,
 } from "@/lib/hsk-lists";
 
-/** Colors sampled from hsk-words-visualized.pdf */
-const LEVEL_COLORS: Record<
-  ListId,
-  { bg: string; ink: string; label: string }
-> = {
-  hsk1: { bg: "#f8b51e", ink: "#1a1a1a", label: "HSK 1" },
-  hsk2: { bg: "#fd4f1c", ink: "#ffffff", label: "HSK 2" },
-  hsk3: { bg: "#bb1718", ink: "#ffffff", label: "HSK 3" },
-  hsk4: { bg: "#267f94", ink: "#ffffff", label: "HSK 4" },
-  hsk5: { bg: "#1b3e76", ink: "#ffffff", label: "HSK 5" },
-  hsk6: { bg: "#6a348a", ink: "#ffffff", label: "HSK 6" },
+type MapLevelId = ListId | "hsk7to9";
+type LevelTone = { bg: string; ink: string; label: string };
+type ColorPalette = Record<MapLevelId, LevelTone>;
+type ShadeId = "rainbow" | "earthtone";
+
+const SHADE_OPTIONS: {
+  id: ShadeId;
+  label: string;
+  hint: string;
+}[] = [
+  { id: "rainbow", label: "Rainbow pastel", hint: "เหลือง → ม่วง" },
+  { id: "earthtone", label: "Earthtone pastel", hint: "โทนดิน อ่านง่าย" },
+];
+
+const PALETTES: Record<ShadeId, ColorPalette> = {
+  rainbow: {
+    hsk1: { bg: "#fef0c8", ink: "#3d3420", label: "HSK 1" },
+    hsk2: { bg: "#ffe0d4", ink: "#4a2e24", label: "HSK 2" },
+    hsk3: { bg: "#f5d6d8", ink: "#4a2428", label: "HSK 3" },
+    hsk4: { bg: "#d5ebf0", ink: "#243a42", label: "HSK 4" },
+    hsk5: { bg: "#d6e0f2", ink: "#243048", label: "HSK 5" },
+    hsk6: { bg: "#e8daf2", ink: "#3a2850", label: "HSK 6" },
+    hsk7to9: { bg: "#e8e8ea", ink: "#3a3a40", label: "HSK 7–9" },
+  },
+  earthtone: {
+    hsk1: { bg: "#f2e2b8", ink: "#4a3c1e", label: "HSK 1" }, // sand / wheat
+    hsk2: { bg: "#e8c4a0", ink: "#4a3220", label: "HSK 2" }, // clay / terracotta
+    hsk3: { bg: "#d9b8a8", ink: "#4a2e28", label: "HSK 3" }, // dusty rose clay
+    hsk4: { bg: "#c5d4b8", ink: "#2e3c28", label: "HSK 4" }, // sage / olive
+    hsk5: { bg: "#b8c8d4", ink: "#283848", label: "HSK 5" }, // slate blue-gray
+    hsk6: { bg: "#d0c0b0", ink: "#3c3028", label: "HSK 6" }, // taupe / mushroom
+    hsk7to9: { bg: "#e6e4e1", ink: "#3c3a38", label: "HSK 7–9" }, // soft gray
+  },
 };
 
 type MapItem = {
   chinese: string;
-  listId: ListId;
+  listId: MapLevelId;
 };
 
 /**
@@ -41,6 +64,37 @@ const PAD = 10;
 const PREVIEW_SCALE = 0.2;
 /** Same square cell for every word (like the reference PDF). */
 const CELL = 32;
+
+function ProgressBar({
+  value,
+  label,
+}: {
+  value: number;
+  label: string;
+}) {
+  const clamped = Math.max(0, Math.min(100, value));
+  return (
+    <div className="space-y-1.5" aria-live="polite">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>{label}</span>
+        <span className="tabular-nums">{clamped}%</span>
+      </div>
+      <div
+        className="h-2 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label={label}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={clamped}
+      >
+        <div
+          className="h-full rounded-full bg-foreground transition-[width] duration-300"
+          style={{ width: `${clamped}%` }}
+        />
+      </div>
+    </div>
+  );
+}
 
 /** Strip () / （）, digits, and any text inside parentheses. */
 function cleanChinese(raw: string) {
@@ -207,6 +261,13 @@ const DIGIT_PIXELS: Record<number, number[][]> = {
     [1, 0, 1],
     [1, 1, 1],
   ],
+  7: [
+    [1, 1, 1],
+    [0, 0, 1],
+    [0, 1, 0],
+    [0, 1, 0],
+    [0, 1, 0],
+  ],
 };
 
 function rowsForLevel(items: MapItem[], cols: number) {
@@ -306,25 +367,28 @@ function LevelBlock({
   items,
   cols,
   height,
+  colors,
   stretch = true,
 }: {
-  listId: ListId;
+  listId: MapLevelId;
   items: MapItem[];
   cols: number;
   /** Exact pixel height to fill — row heights grow to match (no white). */
   height: number;
+  colors: ColorPalette;
   /** When false, keep square CELL row height (width still fills — no empty cells). */
   stretch?: boolean;
 }) {
   const width = cols * CELL;
-  const levelNum = Number(listId.replace("hsk", "")) || 1;
+  const levelNum =
+    listId === "hsk7to9" ? 7 : Number(listId.replace("hsk", "")) || 1;
   const pattern = DIGIT_PIXELS[levelNum] ?? DIGIT_PIXELS[1];
   // Absorb sparse last rows so we never leave blank padded cells.
   const packed = packRowsNoLonely(items, cols);
   const rowCount = Math.max(1, packed.length);
   const rowHeight = stretch ? height / rowCount : CELL;
 
-  const tone = LEVEL_COLORS[listId];
+  const tone = colors[listId];
   const line =
     tone.ink === "#ffffff" ? "rgba(255,255,255,0.28)" : "rgba(0,0,0,0.22)";
 
@@ -350,7 +414,7 @@ function LevelBlock({
         overflow: "hidden",
         alignSelf: stretch ? undefined : "flex-start",
       }}
-      title={LEVEL_COLORS[listId].label}
+      title={colors[listId].label}
     >
       {packed.map((rowItems, rowIdx) => {
         const spans = rowItems.map((it) =>
@@ -391,9 +455,9 @@ function LevelBlock({
                     width: cellW,
                     flexShrink: 0,
                     height: rowHeight,
-                    borderRight: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
-                    borderBottom: `1px solid ${digit ? "rgba(0,0,0,0.2)" : line}`,
-                    backgroundColor: digit ? "#ffffff" : tone.bg,
+                    borderRight: `1px solid ${digit ? "rgba(255,255,255,0.18)" : line}`,
+                    borderBottom: `1px solid ${digit ? "rgba(255,255,255,0.18)" : line}`,
+                    backgroundColor: digit ? tone.ink : tone.bg,
                     overflow: "hidden",
                     clipPath: "inset(0)",
                     display: "flex",
@@ -405,7 +469,7 @@ function LevelBlock({
                 >
                   <WordGlyphs
                     chinese={item.chinese}
-                    color={digit ? "#000000" : tone.ink}
+                    color={digit ? "#ffffff" : tone.ink}
                     singleLine={singleLine}
                     cellW={cellW}
                     cellH={rowHeight}
@@ -570,8 +634,12 @@ function WordGlyphs({
 
 function VisualizedPage({
   byLevel,
+  advancedItems,
+  colors,
 }: {
   byLevel: Record<ListId, MapItem[]>;
+  advancedItems: MapItem[];
+  colors: ColorPalette;
 }) {
   const { totalCols, colsL, cols4, cols5, cols6 } = pickColLayout(
     byLevel.hsk1,
@@ -586,17 +654,19 @@ function VisualizedPage({
   const r2 = rowsForLevel(byLevel.hsk2, colsL);
   const r3 = rowsForLevel(byLevel.hsk3, colsL);
   const r6 = rowsForLevel(byLevel.hsk6, cols6);
+  const r7to9 = rowsForLevel(advancedItems, totalCols);
 
   const r23 = r2 + r3;
   // Heights driven by left side: 4 matches 1, 5 matches 2+3.
   const topRows = r1;
   const midRows = r23;
-  const bodyRows = topRows + midRows + r6;
+  const bodyRows = topRows + midRows + r6 + r7to9;
   const bodyH = bodyRows * CELL;
 
   const topH = topRows * CELL;
   const midH = midRows * CELL;
   const h6H = r6 * CELL;
+  const h7to9H = r7to9 * CELL;
 
   const h1H = topH;
   const h4H = topH;
@@ -633,7 +703,7 @@ function VisualizedPage({
         }}
       >
         <div style={{ fontSize: 15, fontWeight: 700 }}>
-          HSK 3.0 1-6 Words SuperMap
+          HSK 3.0 1-{advancedItems.length ? "9" : "6"} Words SuperMap
         </div>
         <div
           style={{
@@ -657,7 +727,7 @@ function VisualizedPage({
                 style={{
                   width: 12,
                   height: 12,
-                  backgroundColor: LEVEL_COLORS[list.id].bg,
+                  backgroundColor: colors[list.id].bg,
                   display: "inline-block",
                 }}
               />
@@ -667,6 +737,28 @@ function VisualizedPage({
               </span>
             </span>
           ))}
+          {advancedItems.length ? (
+            <span
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+              }}
+            >
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  backgroundColor: colors.hsk7to9.bg,
+                  display: "inline-block",
+                }}
+              />
+              HSK 7–9
+              <span style={{ color: "#737373", fontWeight: 500 }}>
+                {advancedItems.length}
+              </span>
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -694,12 +786,14 @@ function VisualizedPage({
             items={byLevel.hsk1}
             cols={colsL}
             height={h1H}
+            colors={colors}
           />
           <LevelBlock
             listId="hsk4"
             items={byLevel.hsk4}
             cols={cols4}
             height={h4H}
+            colors={colors}
             stretch
           />
         </div>
@@ -728,12 +822,14 @@ function VisualizedPage({
               items={byLevel.hsk2}
               cols={colsL}
               height={h2H}
+              colors={colors}
             />
             <LevelBlock
               listId="hsk3"
               items={byLevel.hsk3}
               cols={colsL}
               height={h3H}
+              colors={colors}
             />
           </div>
           <LevelBlock
@@ -741,6 +837,7 @@ function VisualizedPage({
             items={byLevel.hsk5}
             cols={cols5}
             height={h5H}
+            colors={colors}
             stretch
           />
         </div>
@@ -751,8 +848,19 @@ function VisualizedPage({
           items={byLevel.hsk6}
           cols={cols6}
           height={h6H}
+          colors={colors}
           stretch={false}
         />
+        {advancedItems.length ? (
+          <LevelBlock
+            listId="hsk7to9"
+            items={advancedItems}
+            cols={totalCols}
+            height={h7to9H}
+            colors={colors}
+            stretch={false}
+          />
+        ) : null}
       </div>
     </div>
   );
@@ -760,10 +868,12 @@ function VisualizedPage({
 
 export function HskWordMapSheet({
   wordsByList,
+  advancedWords = [],
   onLoadProgress,
   onClose,
 }: {
   wordsByList: Record<ListId, HskWord[]>;
+  advancedWords?: string[];
   initialListId?: ListId;
   onLoadProgress?: (progress: number) => void;
   onClose: () => void;
@@ -772,8 +882,15 @@ export function HskWordMapSheet({
   const [error, setError] = useState<string | null>(null);
   const [pageH, setPageH] = useState(1800);
   const [renderedLevelCount, setRenderedLevelCount] = useState(1);
+  const [shadeId, setShadeId] = useState<ShadeId>("rainbow");
+  const [shadeProgress, setShadeProgress] = useState<number | null>(null);
+  const [pdfProgress, setPdfProgress] = useState<number | null>(null);
   const pageRef = useRef<HTMLDivElement>(null);
   const previewMeasureRef = useRef<HTMLDivElement>(null);
+  const shadeRefreshingRef = useRef(false);
+  const initialLoadDoneRef = useRef(false);
+  const colors = PALETTES[shadeId];
+  const shadeBusy = shadeProgress !== null;
 
   const baseByLevel = useMemo(() => {
     const map = {} as Record<ListId, MapItem[]>;
@@ -794,6 +911,21 @@ export function HskWordMapSheet({
     }
     return map;
   }, [wordsByList]);
+  const advancedItems = useMemo<MapItem[]>(
+    () =>
+      advancedWords
+        .map(cleanChinese)
+        .filter(Boolean)
+        .map((chinese) => ({ chinese, listId: "hsk7to9" as const }))
+        .sort(
+          (a, b) =>
+            Array.from(a.chinese).length - Array.from(b.chinese).length ||
+            a.chinese.localeCompare(b.chinese, "zh"),
+        ),
+    [advancedWords],
+  );
+  const hasAdvanced = advancedItems.length > 0;
+  const renderStageCount = HSK_LISTS.length + (hasAdvanced ? 1 : 0);
 
   // Render one additional HSK level per browser frame. Progress now represents
   // real map DOM/layout work rather than elapsed time.
@@ -806,10 +938,16 @@ export function HskWordMapSheet({
     });
     return map;
   }, [baseByLevel, renderedLevelCount]);
+  const visibleAdvancedItems =
+    hasAdvanced && renderedLevelCount >= renderStageCount ? advancedItems : [];
 
   const total = useMemo(
-    () => HSK_LISTS.reduce((sum, list) => sum + baseByLevel[list.id].length, 0),
-    [baseByLevel],
+    () =>
+      HSK_LISTS.reduce(
+        (sum, list) => sum + baseByLevel[list.id].length,
+        advancedItems.length,
+      ),
+    [advancedItems.length, baseByLevel],
   );
 
   useLayoutEffect(() => {
@@ -826,20 +964,35 @@ export function HskWordMapSheet({
     let nextFrame = 0;
     let readyFrame = 0;
     const levelProgress = Math.round(
-      (renderedLevelCount / HSK_LISTS.length) * 95,
+      (renderedLevelCount / renderStageCount) * 95,
     );
-    onLoadProgress?.(levelProgress);
+    if (!initialLoadDoneRef.current) {
+      onLoadProgress?.(levelProgress);
+    }
+    if (shadeRefreshingRef.current) {
+      setShadeProgress(Math.max(8, levelProgress));
+    }
 
-    if (renderedLevelCount < HSK_LISTS.length) {
+    if (renderedLevelCount < renderStageCount) {
       nextFrame = requestAnimationFrame(() => {
         setRenderedLevelCount((count) =>
-          Math.min(HSK_LISTS.length, count + 1),
+          Math.min(renderStageCount, count + 1),
         );
       });
     } else {
       // Two frames ensure the complete preview and hidden PDF page have painted.
       nextFrame = requestAnimationFrame(() => {
-        readyFrame = requestAnimationFrame(() => onLoadProgress?.(100));
+        readyFrame = requestAnimationFrame(() => {
+          if (!initialLoadDoneRef.current) {
+            onLoadProgress?.(100);
+            initialLoadDoneRef.current = true;
+          }
+          if (shadeRefreshingRef.current) {
+            shadeRefreshingRef.current = false;
+            setShadeProgress(100);
+            setTimeout(() => setShadeProgress(null), 280);
+          }
+        });
       });
     }
 
@@ -848,18 +1001,46 @@ export function HskWordMapSheet({
       cancelAnimationFrame(nextFrame);
       cancelAnimationFrame(readyFrame);
     };
-  }, [byLevel, onLoadProgress, renderedLevelCount]);
+  }, [
+    byLevel,
+    onLoadProgress,
+    renderStageCount,
+    renderedLevelCount,
+  ]);
+
+  function selectShade(next: ShadeId) {
+    if (next === shadeId || shadeBusy || busy) return;
+    shadeRefreshingRef.current = true;
+    setShadeId(next);
+    setRenderedLevelCount(1);
+    setShadeProgress(8);
+  }
 
   async function downloadPdf() {
-    if (!pageRef.current || busy) return;
+    if (!pageRef.current || busy || shadeBusy) return;
     setBusy(true);
+    setPdfProgress(5);
     setError(null);
+    let tick: ReturnType<typeof setInterval> | null = null;
     try {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+      setPdfProgress(12);
+
       const node = pageRef.current.querySelector<HTMLElement>("[data-map-page]");
       if (!node) throw new Error("ไม่มีหน้าที่จะพิมพ์");
 
       const width = node.offsetWidth;
       const height = node.scrollHeight;
+      setPdfProgress(20);
+
+      tick = setInterval(() => {
+        setPdfProgress((value) => {
+          if (value == null || value >= 72) return value;
+          return value + 2;
+        });
+      }, 180);
 
       const canvas = await html2canvas(node, {
         scale: 2,
@@ -918,7 +1099,14 @@ export function HskWordMapSheet({
         },
       });
 
+      if (tick) {
+        clearInterval(tick);
+        tick = null;
+      }
+      setPdfProgress(78);
+
       const img = canvas.toDataURL("image/jpeg", 0.92);
+      setPdfProgress(88);
       const pdfW = 420;
       const pdfH = Math.max(1, Math.round((pdfW * height) / width));
       const pdf = new jsPDF({
@@ -928,11 +1116,19 @@ export function HskWordMapSheet({
         compress: true,
       });
       pdf.addImage(img, "JPEG", 0, 0, pdfW, pdfH, undefined, "FAST");
-      pdf.save("hsk1-6-words-visualized.pdf");
+      setPdfProgress(96);
+      pdf.save(
+        hasAdvanced
+          ? "hsk1-9-words-visualized.pdf"
+          : "hsk1-6-words-visualized.pdf",
+      );
+      setPdfProgress(100);
     } catch (e) {
       setError(e instanceof Error ? e.message : "สร้าง PDF ไม่สำเร็จ");
     } finally {
+      if (tick) clearInterval(tick);
       setBusy(false);
+      setTimeout(() => setPdfProgress(null), 350);
     }
   }
 
@@ -950,10 +1146,10 @@ export function HskWordMapSheet({
               id="word-map-title"
               className="text-lg font-semibold tracking-tight"
             >
-              HSK 3.0 1-6 Words SuperMap
+              HSK 3.0 1-{hasAdvanced ? "9" : "6"} Words SuperMap
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              HSK 1–6 ในหน้าเดียว · {total} คำ
+              HSK 1–{hasAdvanced ? "9" : "6"} ในหน้าเดียว · {total} คำ
             </p>
           </div>
           <button
@@ -970,9 +1166,71 @@ export function HskWordMapSheet({
       <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto w-full max-w-5xl space-y-4">
           <section className="rounded-xl border border-border p-4">
+            <div className="mb-2 text-sm font-medium">Shade สี</div>
+            <div className="grid grid-cols-2 gap-2">
+              {SHADE_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => selectShade(option.id)}
+                  disabled={shadeBusy || busy}
+                  className={cn(
+                    "rounded-lg border px-3 py-2.5 text-left disabled:opacity-50",
+                    shadeId === option.id
+                      ? "border-foreground bg-foreground text-background"
+                      : "border-border hover:bg-muted",
+                  )}
+                >
+                  <span className="block text-sm font-medium">
+                    {option.label}
+                  </span>
+                  <span
+                    className={cn(
+                      "mt-0.5 block text-[10px]",
+                      shadeId === option.id
+                        ? "text-background/75"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {option.hint}
+                  </span>
+                  <span className="mt-2 flex gap-1">
+                    {HSK_LISTS.map((list) => (
+                      <span
+                        key={list.id}
+                        className="size-3 rounded-sm border border-black/10"
+                        style={{
+                          backgroundColor: PALETTES[option.id][list.id].bg,
+                        }}
+                      />
+                    ))}
+                    {hasAdvanced ? (
+                      <span
+                        className="size-3 rounded-sm border border-black/10"
+                        style={{
+                          backgroundColor:
+                            PALETTES[option.id].hsk7to9.bg,
+                        }}
+                      />
+                    ) : null}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {shadeBusy ? (
+              <div className="mt-3">
+                <ProgressBar
+                  value={shadeProgress ?? 0}
+                  label="กำลังเปลี่ยน shade…"
+                />
+              </div>
+            ) : null}
+          </section>
+
+          <section className="rounded-xl border border-border p-4">
             <div className="flex flex-wrap gap-2">
               {HSK_LISTS.map((list) => {
-                const tone = LEVEL_COLORS[list.id];
+                const tone = colors[list.id];
                 return (
                   <span
                     key={list.id}
@@ -989,15 +1247,27 @@ export function HskWordMapSheet({
                   </span>
                 );
               })}
+              {hasAdvanced ? (
+                <span className="inline-flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium">
+                  <span
+                    className="size-3.5 rounded-sm"
+                    style={{ backgroundColor: colors.hsk7to9.bg }}
+                  />
+                  HSK 7–9
+                  <span className="text-muted-foreground">
+                    {advancedItems.length}
+                  </span>
+                </span>
+              ) : null}
             </div>
           </section>
 
-          <section className="rounded-xl border border-border p-4">
+          <section className="rounded-xl border border-border p-4 space-y-3">
             <div className="flex justify-center">
               <Button
                 type="button"
                 onClick={downloadPdf}
-                disabled={busy || total === 0}
+                disabled={busy || shadeBusy || total === 0}
                 className="h-11 gap-2 sm:min-w-[12rem]"
               >
                 {busy ? (
@@ -1008,8 +1278,14 @@ export function HskWordMapSheet({
                 {busy ? "กำลังสร้าง PDF…" : "ดาวน์โหลด PDF"}
               </Button>
             </div>
+            {pdfProgress !== null ? (
+              <ProgressBar
+                value={pdfProgress}
+                label="กำลังสร้างไฟล์ PDF"
+              />
+            ) : null}
             {error && (
-              <p className="mt-2 text-sm text-rose-600 dark:text-rose-400">
+              <p className="text-sm text-rose-600 dark:text-rose-400">
                 {error}
               </p>
             )}
@@ -1033,7 +1309,11 @@ export function HskWordMapSheet({
                     width: PAGE_W,
                   }}
                 >
-                  <VisualizedPage byLevel={byLevel} />
+                  <VisualizedPage
+                    byLevel={byLevel}
+                    advancedItems={visibleAdvancedItems}
+                    colors={colors}
+                  />
                 </div>
               </div>
             </div>
@@ -1051,7 +1331,11 @@ export function HskWordMapSheet({
           pointerEvents: "none",
         }}
       >
-        <VisualizedPage byLevel={byLevel} />
+        <VisualizedPage
+          byLevel={byLevel}
+          advancedItems={visibleAdvancedItems}
+          colors={colors}
+        />
       </div>
     </div>
   );

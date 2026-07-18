@@ -31,3 +31,17 @@ export const getHskWords = cache(async () => {
   return { hsk1, hsk2, hsk3, hsk4, hsk5, hsk6 };
 });
 
+export const getHskAdvancedWords = cache(async () => {
+  const filePath = path.join(
+    process.cwd(),
+    "HSKList",
+    "HSK_Level_7-9_words.txt",
+  );
+  const content = await readFile(filePath, "utf-8");
+  // Keep duplicate glyphs — many are separate senses/readings in HSK 7–9.
+  return content
+    .split(/\r?\n/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+});
+

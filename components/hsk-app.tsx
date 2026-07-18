@@ -17,7 +17,7 @@ const PAGES = [
   { id: 0, label: "HSK Tracker", menuLabel: "HSK Tracker" },
   // Hidden for now: Quiz รวม (1), HSK Reader (2)
   { id: 3, label: "รวมประโยค", menuLabel: "ประโยค" },
-  { id: 4, label: "แจกไฟล์", menuLabel: "ห้องสมุด" },
+  { id: 4, label: "แจกไฟล์", menuLabel: "File" },
 ] as const;
 
 type MainPageId = (typeof PAGES)[number]["id"];
@@ -31,10 +31,12 @@ type ActiveQuiz = {
 
 export function HskApp({
   wordsByList,
+  advancedWords,
   stories,
   sentenceGroups,
 }: {
   wordsByList: Record<ListId, HskWord[]>;
+  advancedWords: string[];
   stories: ChineseStory[];
   sentenceGroups: SentenceLevelGroup[];
 }) {
@@ -87,7 +89,6 @@ export function HskApp({
         listId={activeList}
         words={wordsByList[activeList]}
         wordsByList={wordsByList}
-        sentenceGroups={sentenceGroups}
         onBack={() => {
           setActiveList(null);
           setPage(0);
@@ -231,7 +232,12 @@ export function HskApp({
               onSelectLevel={setActiveSentenceLevel}
             />
           )}
-          {page === 4 && <HskFilesView wordsByList={wordsByList} />}
+          {page === 4 && (
+            <HskFilesView
+              wordsByList={wordsByList}
+              advancedWords={advancedWords}
+            />
+          )}
         </div>
       </div>
 
