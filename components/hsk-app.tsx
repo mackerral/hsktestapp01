@@ -241,10 +241,10 @@ export function HskApp({
         </div>
       </div>
 
-      <footer className="sticky bottom-0 z-[70] shrink-0 border-t border-border/60 bg-background/95 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur">
-        <div className="flex justify-center px-2 pt-3">
+      <footer className="sticky bottom-0 z-[70] shrink-0 border-t border-border/60 bg-background/95 pb-[max(0.85rem,env(safe-area-inset-bottom))] backdrop-blur">
+        <div className="flex justify-center px-2 pt-3.5">
           <div
-            className="flex w-full max-w-sm items-center gap-1 rounded-full border border-border bg-background p-1.5 shadow-sm"
+            className="flex w-full max-w-md items-center gap-1.5 rounded-full border border-border bg-background p-2 shadow-sm"
             role="tablist"
             aria-label="หน้าหลัก"
           >
@@ -258,7 +258,7 @@ export function HskApp({
                 title={item.label}
                 onClick={() => navigateToMainPage(item.id)}
                 className={cn(
-                  "min-w-0 flex-1 rounded-full px-3 py-2 text-center text-xs font-medium transition-all duration-200 sm:text-sm",
+                  "min-w-0 flex-1 rounded-full px-4 py-2.5 text-center text-sm font-medium transition-all duration-200 sm:px-5 sm:py-3 sm:text-base",
                   page === item.id
                     ? "bg-foreground text-background"
                     : "text-muted-foreground hover:bg-muted",

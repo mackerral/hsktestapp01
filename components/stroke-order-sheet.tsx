@@ -124,6 +124,19 @@ function validStrokes(value: unknown): value is string[] {
   );
 }
 
+/** Normalize API/CDN payload: either string[] or { strokes, medians }. */
+function asStrokePaths(value: unknown): string[] | null {
+  if (validStrokes(value)) return value;
+  if (
+    value &&
+    typeof value === "object" &&
+    validStrokes((value as { strokes?: unknown }).strokes)
+  ) {
+    return (value as { strokes: string[] }).strokes;
+  }
+  return null;
+}
+
 async function loadCdnStrokes(character: string): Promise<string[] | null> {
   try {
     const response = await fetch(
@@ -132,7 +145,7 @@ async function loadCdnStrokes(character: string): Promise<string[] | null> {
     );
     if (!response.ok) return null;
     const payload = (await response.json()) as { strokes?: unknown };
-    return validStrokes(payload.strokes) ? payload.strokes : null;
+    return asStrokePaths(payload);
   } catch {
     return null;
   }
@@ -714,45 +727,69 @@ export function StrokeOrderSheet({
     setLoadProgress(0);
     setError(null);
     try {
-      let completed = 0;
-      const cdnEntries = await mapWithConcurrency(
-        selectedCharacters,
-        12,
-        async (character) => {
-          const cached = STROKE_MEMORY_CACHE.get(character);
-          const entry = [
-            character,
-            cached ?? (await loadCdnStrokes(character)),
-          ] as const;
-          completed++;
-          setLoadProgress(
-            Math.round((completed / selectedCharacters.length) * 85),
-          );
-          return entry;
-        },
-      );
-      const nextMap: StrokeMap = Object.fromEntries(cdnEntries);
-      const fallbackCharacters = cdnEntries
-        .filter(([, strokes]) => !strokes)
-        .map(([character]) => character);
+      let loadedCount = 0;
+      const nextMap: StrokeMap = {};
 
-      if (fallbackCharacters.length) {
-        const fallbackBatches = chunk(fallbackCharacters, 80);
-        for (let index = 0; index < fallbackBatches.length; index++) {
-          const response = await fetch("/api/strokes", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ characters: fallbackBatches[index] }),
-          });
-          if (!response.ok) {
-            throw new Error("CDN ใช้งานไม่ได้ และโหลดข้อมูลสำรองไม่สำเร็จ");
-          }
-          const payload = (await response.json()) as { data?: StrokeMap };
-          Object.assign(nextMap, payload.data ?? {});
-          setLoadProgress(
-            85 +
-              Math.round(((index + 1) / fallbackBatches.length) * 15),
-          );
+      for (const character of selectedCharacters) {
+        const cached = STROKE_MEMORY_CACHE.get(character);
+        if (cached) {
+          nextMap[character] = cached;
+          loadedCount++;
+        }
+      }
+      if (loadedCount) {
+        setLoadProgress(
+          Math.round((loadedCount / selectedCharacters.length) * 85),
+        );
+      }
+
+      const needLocal = selectedCharacters.filter(
+        (character) => !nextMap[character],
+      );
+      const localBatches = chunk(needLocal, 80);
+      for (let index = 0; index < localBatches.length; index++) {
+        const batch = localBatches[index];
+        const response = await fetch("/api/strokes", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ characters: batch }),
+        });
+        if (!response.ok) {
+          throw new Error("โหลดข้อมูลจากเซิร์ฟเวอร์ไม่สำเร็จ");
+        }
+        const payload = (await response.json()) as { data?: Record<string, unknown> };
+        for (const character of batch) {
+          const paths = asStrokePaths(payload.data?.[character]);
+          if (paths) nextMap[character] = paths;
+        }
+        loadedCount += batch.length;
+        setLoadProgress(
+          Math.round((loadedCount / selectedCharacters.length) * 85),
+        );
+      }
+
+      const needCdn = selectedCharacters.filter(
+        (character) => !nextMap[character],
+      );
+      if (needCdn.length) {
+        let cdnCompleted = 0;
+        const cdnEntries = await mapWithConcurrency(
+          needCdn,
+          12,
+          async (character) => {
+            const entry = [
+              character,
+              await loadCdnStrokes(character),
+            ] as const;
+            cdnCompleted++;
+            setLoadProgress(
+              85 + Math.round((cdnCompleted / needCdn.length) * 15),
+            );
+            return entry;
+          },
+        );
+        for (const [character, strokes] of cdnEntries) {
+          if (strokes) nextMap[character] = strokes;
         }
       }
 
@@ -878,7 +915,7 @@ export function StrokeOrderSheet({
               เลือกระดับ แล้วกำหนดจำนวนคำและสถานะที่ต้องการ
             </p>
             <p className="mt-1 text-[10px] text-muted-foreground/80">
-              โหลดจาก jsDelivr CDN ก่อน · ใช้ข้อมูลในเซิร์ฟเวอร์เป็น fallback
+              โหลดจากเซิร์ฟเวอร์ก่อน · ใช้ jsDelivr CDN เป็น fallback
             </p>
             <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
               {HSK_LISTS.map((list) => (

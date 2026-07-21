@@ -11,7 +11,12 @@ import {
   type ListId,
 } from "@/lib/hsk-lists";
 
-export type QuizModeId = "zh-th" | "th-zh" | "zh-py";
+export type QuizModeId =
+  | "zh-th"
+  | "th-zh"
+  | "zh-py"
+  | "audio-zh"
+  | "audio-th";
 /** @deprecated use QuizModeId — kept so older imports still compile during rename */
 export type QuizPresetId = QuizModeId;
 
@@ -39,14 +44,16 @@ export const QUIZ_MODES: { id: QuizModeId; label: string }[] = [
   { id: "zh-th", label: "ถามจีน -- ตอบไทย" },
   { id: "th-zh", label: "ถามไทย -- ตอบจีน" },
   { id: "zh-py", label: "ถามจีน -- ตอบพินอิน" },
+  { id: "audio-zh", label: "ถามเสียงจีน -- ตอบจีน" },
+  { id: "audio-th", label: "ถามเสียงจีน -- ตอบไทย" },
 ];
 
 const QUIZ_SETS: { id: QuizSetId; title: string; defaultMode: QuizModeId }[] = [
   { id: "set1", title: "ชุด 1", defaultMode: "zh-th" },
   { id: "set2", title: "ชุด 2", defaultMode: "th-zh" },
   { id: "set3", title: "ชุด 3", defaultMode: "zh-py" },
-  { id: "set4", title: "ชุด 4", defaultMode: "zh-th" },
-  { id: "set5", title: "ชุด 5", defaultMode: "th-zh" },
+  { id: "set4", title: "ชุด 4", defaultMode: "audio-zh" },
+  { id: "set5", title: "ชุด 5", defaultMode: "audio-th" },
   { id: "set6", title: "ชุด 6", defaultMode: "zh-py" },
 ];
 
@@ -60,7 +67,7 @@ function defaultSettings(mode: QuizModeId = "zh-th"): QuizSettings {
     levels: ALL_LEVELS,
     choiceCount: 4,
     statuses: { known: true, unknown: true, neutral: true },
-    hideChoicesFirst: false,
+    hideChoicesFirst: true,
   };
 }
 
@@ -69,7 +76,17 @@ function settingsKey(id: QuizSetId) {
 }
 
 function isQuizModeId(value: unknown): value is QuizModeId {
-  return value === "zh-th" || value === "th-zh" || value === "zh-py";
+  return (
+    value === "zh-th" ||
+    value === "th-zh" ||
+    value === "zh-py" ||
+    value === "audio-zh" ||
+    value === "audio-th"
+  );
+}
+
+export function isAudioQuizMode(mode: QuizModeId) {
+  return mode === "audio-zh" || mode === "audio-th";
 }
 
 function loadSettings(id: QuizSetId, defaultMode: QuizModeId): QuizSettings {

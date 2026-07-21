@@ -5,7 +5,6 @@ import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
-import { useGlossPopup } from "@/components/word-gloss";
 
 type Status = "known" | "unknown";
 type StatusMap = Record<string, Status>;
@@ -24,7 +23,7 @@ export function HskWordGrid({
   status,
   pencilMarks = {},
   pencilMode = false,
-  onToggle,
+  onWordClick,
   onPencilToggle,
   onPick,
   onHop,
@@ -35,13 +34,14 @@ export function HskWordGrid({
   columns = 4,
   pickMode = false,
   highlightIndex = null,
+  rangeAnchorIndex = null,
 }: {
   words: HskWord[];
   ids: string[];
   status: StatusMap;
   pencilMarks?: Record<string, true>;
   pencilMode?: boolean;
-  onToggle: (id: string) => void;
+  onWordClick: (index: number) => void;
   onPencilToggle?: (id: string) => void;
   onPick?: (index: number) => void;
   onHop?: (index: number) => void;
@@ -52,9 +52,8 @@ export function HskWordGrid({
   columns?: number;
   pickMode?: boolean;
   highlightIndex?: number | null;
+  rangeAnchorIndex?: number | null;
 }) {
-  const gloss = useGlossPopup();
-
   useEffect(() => {
     if (!window.speechSynthesis) return;
     loadVoices();
@@ -112,57 +111,55 @@ export function HskWordGrid({
   const type = typeByCol[columns] ?? typeByCol[4];
 
   return (
-    <>
-      <div
-        className={cn(
-          "grid gap-2 sm:gap-3",
-          superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
-        )}
-      >
-        {words.map((word, i) => {
-          const id = ids[i];
-          const current: Status | "neutral" = status[id] ?? "neutral";
-          const hasPencil = Boolean(pencilMarks[id]);
-          const glossBind = gloss.bindWord({
-            text: word.chinese,
-            pinyin: word.pinyin,
-            thai: word.thai,
-          });
+    <div
+      className={cn(
+        "grid gap-2 sm:gap-3",
+        superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
+      )}
+    >
+      {words.map((word, i) => {
+        const id = ids[i];
+        const current: Status | "neutral" = status[id] ?? "neutral";
+        const hasPencil = Boolean(pencilMarks[id]);
 
-          const handleClick = () => {
-            if (gloss.didLongPress()) return;
-            if (pickMode && onPick) {
-              onPick(i);
-              return;
-            }
-            if (superGrid && onHop) {
-              onHop(i);
-              return;
-            }
-            if (pencilMode && onPencilToggle) {
-              onPencilToggle(id);
-              if (showSound) speak(word.chinese);
-              return;
-            }
-            onToggle(id);
+        const handleClick = () => {
+          if (pickMode && onPick) {
+            onPick(i);
+            return;
+          }
+          if (superGrid && onHop) {
+            onHop(i);
+            return;
+          }
+          if (pencilMode && onPencilToggle) {
+            onPencilToggle(id);
             if (showSound) speak(word.chinese);
-          };
+            return;
+          }
+          onWordClick(i);
+        };
 
-          if (superGrid) {
-            return (
-              <button
-                key={id}
-                type="button"
-                title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
-                className={cn(
-                  "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:manipulation]",
-                  statusStyles[current],
-                  pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
-                  pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
-                )}
-                {...glossBind}
-                onClick={handleClick}
-              >
+        const blockContextMenu = (event: React.MouseEvent<HTMLElement>) => {
+          event.preventDefault();
+        };
+
+        if (superGrid) {
+          return (
+            <button
+              key={id}
+              type="button"
+              title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
+              className={cn(
+                "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:manipulation]",
+                statusStyles[current],
+                pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
+                pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
+                rangeAnchorIndex === i &&
+                  "ring-2 ring-orange-500 ring-offset-1",
+              )}
+              onContextMenu={blockContextMenu}
+              onClick={handleClick}
+            >
                 {hasPencil && (
                   <Pencil
                     className="absolute top-0.5 right-0.5 size-2.5 text-orange-600 dark:text-orange-300"
@@ -188,10 +185,12 @@ export function HskWordGrid({
                 pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
                 pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-300",
                 highlightIndex === i && "ring-2 ring-sky-500 ring-offset-2",
-              )}
-              {...glossBind}
-              onClick={handleClick}
-            >
+              rangeAnchorIndex === i &&
+                "ring-2 ring-orange-500 ring-offset-2",
+            )}
+            onContextMenu={blockContextMenu}
+            onClick={handleClick}
+          >
               {hasPencil && (
                 <span
                   className="pointer-events-none absolute top-1.5 right-1.5 inline-flex size-5 items-center justify-center rounded-full bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300"
@@ -216,8 +215,6 @@ export function HskWordGrid({
             </button>
           );
         })}
-      </div>
-      {gloss.popup}
-    </>
+    </div>
   );
 }

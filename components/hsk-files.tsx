@@ -3,7 +3,10 @@
 import { useCallback, useState } from "react";
 import { CustomDrillSheet } from "@/components/custom-drill-sheet";
 import { HskWordMapSheet } from "@/components/hsk-word-map-sheet";
+import { StrokeOrderSheet } from "@/components/stroke-order-sheet";
+import { StrokeOrderSummarySheet } from "@/components/stroke-order-summary-sheet";
 import type { HskWord, ListId } from "@/lib/hsk-lists";
+import { formatHskLevelLabel, hskLevelsWithWords } from "@/lib/hsk-lists";
 
 const HSK_1_9_SUPERMAP_PDF_URL =
   "https://pub-e48f991a086a412eadf434f9d6acae55.r2.dev/hsk1-9-words-visualized.pdf";
@@ -18,8 +21,17 @@ export function HskFilesView({
   advancedWords?: string[];
 }) {
   const [openCustomDrill, setOpenCustomDrill] = useState(false);
+  const [openStrokeOrder, setOpenStrokeOrder] = useState(false);
+  const [openStrokeSummary, setOpenStrokeSummary] = useState(false);
   const [openWordMap, setOpenWordMap] = useState(false);
   const [wordMapProgress, setWordMapProgress] = useState<number | null>(null);
+
+  const strokeSummaryTitle = `${formatHskLevelLabel(
+    hskLevelsWithWords(wordsByList),
+  )} ลำดับขีด จัดทำโดย DreamHSK`;
+  const strokeSummaryLevels = formatHskLevelLabel(
+    hskLevelsWithWords(wordsByList),
+  );
 
   const openSuperMap = () => {
     setWordMapProgress(5);
@@ -56,6 +68,32 @@ export function HskFilesView({
             </div>
             <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
               HSK 1–6 · ซ่อนช่อง / กรองสถานะ / สุ่มลำดับ · PDF A4
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOpenStrokeOrder(true)}
+            className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
+          >
+            <div className="text-lg font-semibold tracking-tight sm:text-xl">
+              แบบฝึกลำดับขีด
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
+              HSK 1–6 · Tian Zi Ge / Mi Zi Ge · สร้าง PDF A4
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setOpenStrokeSummary(true)}
+            className="rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-foreground/30 hover:bg-accent/40 sm:p-5"
+          >
+            <div className="text-lg font-semibold tracking-tight sm:text-xl">
+              {strokeSummaryTitle}
+            </div>
+            <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
+              {strokeSummaryLevels} · กำหนดจำนวนคำได้ · ขีดใหม่สีแดง · พินอิน/แปล
             </div>
           </button>
 
@@ -103,6 +141,20 @@ export function HskFilesView({
           wordsByList={wordsByList}
           initialListId="hsk1"
           onClose={() => setOpenCustomDrill(false)}
+        />
+      )}
+
+      {openStrokeOrder && (
+        <StrokeOrderSheet
+          wordsByList={wordsByList}
+          onClose={() => setOpenStrokeOrder(false)}
+        />
+      )}
+
+      {openStrokeSummary && (
+        <StrokeOrderSummarySheet
+          wordsByList={wordsByList}
+          onClose={() => setOpenStrokeSummary(false)}
         />
       )}
 

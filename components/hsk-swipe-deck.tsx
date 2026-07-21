@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ALargeSmall, Languages, Volume2, VolumeX } from "lucide-react";
+import {
+  ALargeSmall,
+  Languages,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
@@ -21,9 +26,11 @@ export function HskSwipeDeck({
   showPinyin,
   showTranslation,
   showSound,
+  trackEnabled,
   onShowPinyinChange,
   onShowTranslationChange,
   onShowSoundChange,
+  onTrackEnabledChange,
   onKnown,
   onNeedLearn,
   onExit,
@@ -37,9 +44,11 @@ export function HskSwipeDeck({
   showPinyin: boolean;
   showTranslation: boolean;
   showSound: boolean;
+  trackEnabled: boolean;
   onShowPinyinChange: (value: boolean) => void;
   onShowTranslationChange: (value: boolean) => void;
   onShowSoundChange: (value: boolean) => void;
+  onTrackEnabledChange: (value: boolean) => void;
   onKnown: () => void;
   onNeedLearn: () => void;
   onExit: () => void;
@@ -222,7 +231,9 @@ export function HskSwipeDeck({
               <span className="text-lg text-muted-foreground">{thai}</span>
             )}
             <p className="mt-6 text-xs text-muted-foreground">
-              แตะ = เสียง · ปัดขวา = จำได้ · ปัดซ้าย = จำไม่ได้
+              {trackEnabled
+                ? "แตะ = เสียง · ปัดขวา = จำได้ · ปัดซ้าย = จำไม่ได้"
+                : "แตะ = เสียง · ปัด = ไปคำถัดไป (Track ปิด)"}
             </p>
           </div>
         </div>

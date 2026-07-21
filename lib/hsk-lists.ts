@@ -18,6 +18,40 @@ export const HSK_LISTS: { id: ListId; label: string; level: number }[] = [
   { id: "hsk6", label: "HSK 6", level: 6 },
 ];
 
+/** e.g. [1,2,3,5,6] → "HSK 1-3, 5-6"; [3] → "HSK 3" */
+export function formatHskLevelLabel(levels: number[]): string {
+  const sorted = [...new Set(levels.filter((n) => Number.isFinite(n)))].sort(
+    (a, b) => a - b,
+  );
+  if (!sorted.length) return "HSK";
+
+  const parts: string[] = [];
+  let start = sorted[0];
+  let prev = sorted[0];
+
+  for (let index = 1; index < sorted.length; index++) {
+    const next = sorted[index];
+    if (next === prev + 1) {
+      prev = next;
+      continue;
+    }
+    parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+    start = next;
+    prev = next;
+  }
+  parts.push(start === prev ? `${start}` : `${start}-${prev}`);
+
+  return `HSK ${parts.join(", ")}`;
+}
+
+export function hskLevelsWithWords(
+  wordsByList: Partial<Record<ListId, HskWord[]>>,
+) {
+  return HSK_LISTS.filter(
+    (list) => (wordsByList[list.id]?.length ?? 0) > 0,
+  ).map((list) => list.level);
+}
+
 export function isListId(value: string): value is ListId {
   return HSK_LISTS.some((list) => list.id === value);
 }
@@ -28,6 +62,27 @@ export function statusStorageKey(listId: ListId) {
 
 export function pencilStorageKey(listId: ListId) {
   return `hsk-pencil:${listId}`;
+}
+
+const TRACK_ENABLED_KEY = "hsk-track-enabled";
+
+/** When false, known/unknown status cannot be changed (sound still works). */
+export function loadTrackEnabled(): boolean {
+  try {
+    const raw = localStorage.getItem(TRACK_ENABLED_KEY);
+    if (raw === null) return true;
+    return raw !== "0" && raw !== "false";
+  } catch {
+    return true;
+  }
+}
+
+export function saveTrackEnabled(enabled: boolean) {
+  try {
+    localStorage.setItem(TRACK_ENABLED_KEY, enabled ? "1" : "0");
+  } catch {
+    // ignore
+  }
 }
 
 export type PencilMap = Record<string, true>;

@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { buildVocabMap, segmentChinese } from "@/lib/segment-chinese";
 import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord, ListId, Status, StatusMap } from "@/lib/hsk-lists";
+import { loadTrackEnabled } from "@/lib/hsk-lists";
 import {
   sentenceItemId,
   sentenceStatusKey,
@@ -253,7 +254,7 @@ export function HskSentencesView({
   }
 
   function markStoryAndAdvance(card: SentenceCard, status: Status) {
-    if (!active) return;
+    if (!active || !loadTrackEnabled()) return;
     setStatusMap((prev) => {
       const next = { ...prev };
       for (let i = 0; i < card.sentences.length; i++) {

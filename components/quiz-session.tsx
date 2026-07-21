@@ -13,7 +13,11 @@ import {
   type ListId,
   type StatusMap,
 } from "@/lib/hsk-lists";
-import type { QuizModeId, QuizSettings } from "@/components/quiz-menu";
+import type {
+  QuizModeId,
+  QuizSettings,
+} from "@/components/quiz-menu";
+import { isAudioQuizMode } from "@/components/quiz-menu";
 
 type QuizChoice = {
   text: string;
@@ -26,6 +30,8 @@ type QuizItem = {
   answer: string;
   choices: QuizChoice[];
 };
+
+const AUDIO_PROMPT = "กดเพื่อเล่นเสียง";
 
 function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -65,25 +71,30 @@ function buildPool(
   return pool;
 }
 
+function uniqueAnswerKey(preset: QuizModeId, word: HskWord) {
+  if (preset === "zh-py") return word.pinyin;
+  if (preset === "th-zh" || preset === "audio-zh") return word.chinese;
+  return word.thai;
+}
+
+function promptOf(preset: QuizModeId, word: HskWord) {
+  if (isAudioQuizMode(preset)) return AUDIO_PROMPT;
+  if (preset === "th-zh") return word.thai;
+  return word.chinese;
+}
+
+function answerOf(preset: QuizModeId, word: HskWord) {
+  if (preset === "zh-th" || preset === "audio-th") return word.thai;
+  if (preset === "th-zh" || preset === "audio-zh") return word.chinese;
+  return word.pinyin;
+}
+
 function buildQuiz(
   pool: HskWord[],
   preset: QuizModeId,
   settings: QuizSettings,
 ): QuizItem[] {
   if (pool.length < 2) return [];
-
-  const uniqueKey = (w: HskWord) =>
-    preset === "zh-py"
-      ? w.pinyin
-      : preset === "th-zh"
-        ? w.chinese
-        : w.thai;
-
-  const promptOf = (w: HskWord) =>
-    preset === "th-zh" ? w.thai : w.chinese;
-
-  const answerOf = (w: HskWord) =>
-    preset === "zh-th" ? w.thai : preset === "th-zh" ? w.chinese : w.pinyin;
 
   const count =
     settings.questionCount === "all"
@@ -92,13 +103,15 @@ function buildQuiz(
   const picked = shuffle(pool).slice(0, count);
 
   return picked.map((word) => {
-    const answer = answerOf(word);
+    const answer = answerOf(preset, word);
     const wrongPool = shuffle(
-      pool.filter((w) => uniqueKey(w) !== uniqueKey(word)),
+      pool.filter(
+        (w) => uniqueAnswerKey(preset, w) !== uniqueAnswerKey(preset, word),
+      ),
     );
     const wrongs: QuizChoice[] = [];
     for (const w of wrongPool) {
-      const a = answerOf(w);
+      const a = answerOf(preset, w);
       if (a !== answer && !wrongs.some((x) => x.text === a)) {
         wrongs.push({ text: a, chinese: w.chinese });
       }
@@ -107,7 +120,7 @@ function buildQuiz(
     const choiceTarget = Math.min(settings.choiceCount, wrongs.length + 1);
     return {
       chinese: word.chinese,
-      prompt: promptOf(word),
+      prompt: promptOf(preset, word),
       answer,
       choices: shuffle([
         { text: answer, chinese: word.chinese },
@@ -154,7 +167,16 @@ export function QuizSession({
     };
   }, []);
 
-  if (questions.length === 0) {
+  const audioMode = isAudioQuizMode(preset);
+  const q = questions[index] ?? null;
+  const promptChinese = q?.chinese ?? "";
+
+  useEffect(() => {
+    if (!audioMode || !soundOn || done || !promptChinese) return;
+    speak(promptChinese);
+  }, [audioMode, soundOn, done, promptChinese, index]);
+
+  if (questions.length === 0 || !q) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <h2 className="text-xl font-semibold">ไม่มีคำเพียงพอ</h2>
@@ -166,8 +188,11 @@ export function QuizSession({
     );
   }
 
-  const q = questions[index];
   const answered = selected !== null;
+
+  function playPromptAudio() {
+    speak(q.chinese);
+  }
 
   function pick(choice: QuizChoice) {
     if (selected) return;
@@ -263,9 +288,19 @@ export function QuizSession({
           {title}
         </p>
         <div className="mt-6 flex flex-col items-center justify-center py-6 text-center">
-          <div className="text-4xl font-bold leading-tight sm:text-5xl">
-            {q.prompt}
-          </div>
+          {audioMode ? (
+            <button
+              type="button"
+              onClick={playPromptAudio}
+              className="max-w-sm rounded-2xl border-2 border-sky-300 bg-sky-50 px-5 py-5 text-lg font-semibold leading-snug text-sky-950 transition-colors hover:bg-sky-100 sm:text-xl"
+            >
+              {AUDIO_PROMPT}
+            </button>
+          ) : (
+            <div className="text-4xl font-bold leading-tight sm:text-5xl">
+              {q.prompt}
+            </div>
+          )}
         </div>
 
         {!choicesVisible ? (

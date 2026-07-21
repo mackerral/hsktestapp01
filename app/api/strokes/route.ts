@@ -7,9 +7,41 @@ const HANZI = /\p{Script=Han}/u;
 
 type StrokeFile = {
   strokes?: unknown;
+  medians?: unknown;
 };
 
-async function loadStrokes(character: string): Promise<string[] | null> {
+type StrokeGlyph = {
+  strokes: string[];
+  medians: number[][][];
+};
+
+function validStrokes(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every((stroke) => typeof stroke === "string")
+  );
+}
+
+function validMedians(value: unknown): value is number[][][] {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (median) =>
+        Array.isArray(median) &&
+        median.length > 0 &&
+        median.every(
+          (point) =>
+            Array.isArray(point) &&
+            point.length >= 2 &&
+            typeof point[0] === "number" &&
+            typeof point[1] === "number",
+        ),
+    )
+  );
+}
+
+async function loadGlyph(character: string): Promise<StrokeGlyph | null> {
   try {
     const file = path.join(
       process.cwd(),
@@ -18,13 +50,11 @@ async function loadStrokes(character: string): Promise<string[] | null> {
       `${character}.json`,
     );
     const parsed = JSON.parse(await readFile(file, "utf8")) as StrokeFile;
-    if (
-      !Array.isArray(parsed.strokes) ||
-      !parsed.strokes.every((stroke) => typeof stroke === "string")
-    ) {
-      return null;
-    }
-    return parsed.strokes;
+    if (!validStrokes(parsed.strokes)) return null;
+    return {
+      strokes: parsed.strokes,
+      medians: validMedians(parsed.medians) ? parsed.medians : [],
+    };
   } catch {
     return null;
   }
@@ -61,7 +91,7 @@ export async function POST(request: Request) {
   const entries = await Promise.all(
     unique.map(async (character) => [
       character,
-      await loadStrokes(character),
+      await loadGlyph(character),
     ] as const),
   );
 
