@@ -12,6 +12,8 @@ import { createPortal } from "react-dom";
 
 const LONG_PRESS_MS = 400;
 const MOVE_CANCEL_PX = 12;
+/** Keep mouse flag through late contextmenu after pointerup (Windows). */
+const MOUSE_CONTEXT_GRACE_MS = 700;
 /** Clear click-suppress after long-press so later taps are not eaten. */
 const SUPPRESS_CLICK_MS = 450;
 
@@ -66,7 +68,10 @@ export function WordGlossPopup({
 export function useWordLongPress(onOpen: (word: GlossWord) => void) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mouseGraceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startRef = useRef<{ x: number; y: number } | null>(null);
+  const activePointerRef = useRef<string | null>(null);
+  const openedRef = useRef(false);
   const suppressClickRef = useRef(false);
   const onOpenRef = useRef(onOpen);
   onOpenRef.current = onOpen;
@@ -75,6 +80,13 @@ export function useWordLongPress(onOpen: (word: GlossWord) => void) {
     if (timerRef.current != null) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
+    }
+  };
+
+  const clearMouseGrace = () => {
+    if (mouseGraceRef.current != null) {
+      clearTimeout(mouseGraceRef.current);
+      mouseGraceRef.current = null;
     }
   };
 
@@ -105,6 +117,7 @@ export function useWordLongPress(onOpen: (word: GlossWord) => void) {
   useEffect(
     () => () => {
       clearTimer();
+      clearMouseGrace();
       clearSuppress();
     },
     [],
@@ -117,44 +130,81 @@ export function useWordLongPress(onOpen: (word: GlossWord) => void) {
       if (suppressed) clearSuppress();
       return suppressed;
     },
-    bindWord: (word: GlossWord) => ({
-      onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
-        if (event.pointerType === "mouse" && event.button !== 0) return;
-        startRef.current = { x: event.clientX, y: event.clientY };
-        clearTimer();
-        timerRef.current = setTimeout(() => {
-          startRef.current = null;
-          timerRef.current = null;
-          armSuppress();
-          onOpenRef.current(word);
-          try {
-            navigator.vibrate?.(12);
-          } catch {
-            // ignore
-          }
-        }, LONG_PRESS_MS);
-      },
-      onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
-        const start = startRef.current;
-        if (!start || timerRef.current == null) return;
-        const dx = event.clientX - start.x;
-        const dy = event.clientY - start.y;
-        if (dx * dx + dy * dy > MOVE_CANCEL_PX * MOVE_CANCEL_PX) {
-          resetPress();
+    bindWord: (word: GlossWord) => {
+      const openPopup = () => {
+        if (openedRef.current) return;
+        openedRef.current = true;
+        armSuppress();
+        onOpenRef.current(word);
+        try {
+          navigator.vibrate?.(12);
+        } catch {
+          // ignore
         }
-      },
-      onPointerUp: resetPress,
-      onPointerCancel: resetPress,
-      onClickCapture: (event: ReactMouseEvent<HTMLElement>) => {
-        if (!suppressClickRef.current) return;
+      };
+
+      const blockContextMenu = (event: ReactMouseEvent<HTMLElement>) => {
+        event.preventDefault();
         event.stopPropagation();
-        event.preventDefault();
-        clearSuppress();
-      },
-      onContextMenu: (event: ReactMouseEvent<HTMLElement>) => {
-        event.preventDefault();
-      },
-    }),
+        openPopup();
+      };
+
+      const finishPointer = (event: ReactPointerEvent<HTMLElement>) => {
+        resetPress();
+        if (event.pointerType === "mouse") {
+          clearMouseGrace();
+          mouseGraceRef.current = setTimeout(() => {
+            activePointerRef.current = null;
+            mouseGraceRef.current = null;
+          }, MOUSE_CONTEXT_GRACE_MS);
+          return;
+        }
+        activePointerRef.current = null;
+      };
+
+      return {
+        onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
+          if (event.pointerType === "mouse" && event.button === 2) {
+            activePointerRef.current = "mouse";
+            return;
+          }
+          if (event.button !== 0) return;
+
+          clearMouseGrace();
+          activePointerRef.current = event.pointerType;
+          openedRef.current = false;
+          startRef.current = { x: event.clientX, y: event.clientY };
+          clearTimer();
+          timerRef.current = setTimeout(() => {
+            startRef.current = null;
+            timerRef.current = null;
+            openPopup();
+          }, LONG_PRESS_MS);
+        },
+        onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
+          const start = startRef.current;
+          if (!start || timerRef.current == null) return;
+          const dx = event.clientX - start.x;
+          const dy = event.clientY - start.y;
+          if (dx * dx + dy * dy > MOVE_CANCEL_PX * MOVE_CANCEL_PX) {
+            resetPress();
+          }
+        },
+        onPointerUp: finishPointer,
+        onPointerCancel: finishPointer,
+        onDragStart: (event: React.DragEvent<HTMLElement>) => {
+          event.preventDefault();
+        },
+        onClickCapture: (event: ReactMouseEvent<HTMLElement>) => {
+          if (!suppressClickRef.current) return;
+          event.stopPropagation();
+          event.preventDefault();
+          clearSuppress();
+        },
+        onContextMenu: blockContextMenu,
+        onContextMenuCapture: blockContextMenu,
+      };
+    },
   };
 }
 

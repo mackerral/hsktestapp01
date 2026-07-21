@@ -5,6 +5,7 @@ import { Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { loadVoices, speak } from "@/lib/speak";
 import type { HskWord } from "@/lib/hsk-lists";
+import { useGlossPopup } from "@/components/word-gloss";
 
 type Status = "known" | "unknown";
 type StatusMap = Record<string, Status>;
@@ -16,6 +17,10 @@ const statusStyles: Record<Status | "neutral", string> = {
   unknown:
     "bg-rose-50 border-rose-400 text-rose-900 dark:bg-rose-950 dark:border-rose-600 dark:text-rose-100 shadow-sm",
 };
+
+/** Block highlight / drag-select on word cards (mobile + desktop). */
+const cardSelectLock =
+  "select-none [-webkit-user-select:none] [-webkit-touch-callout:none] [&_*]:select-none [&_*]:[-webkit-user-select:none]";
 
 export function HskWordGrid({
   words,
@@ -54,6 +59,7 @@ export function HskWordGrid({
   highlightIndex?: number | null;
   rangeAnchorIndex?: number | null;
 }) {
+  const gloss = useGlossPopup();
   useEffect(() => {
     if (!window.speechSynthesis) return;
     loadVoices();
@@ -111,55 +117,60 @@ export function HskWordGrid({
   const type = typeByCol[columns] ?? typeByCol[4];
 
   return (
-    <div
-      className={cn(
-        "grid gap-2 sm:gap-3",
-        superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
-      )}
-    >
-      {words.map((word, i) => {
-        const id = ids[i];
-        const current: Status | "neutral" = status[id] ?? "neutral";
-        const hasPencil = Boolean(pencilMarks[id]);
+    <>
+      <div
+        className={cn(
+          "grid gap-2 sm:gap-3",
+          cardSelectLock,
+          superGrid ? "grid-cols-[repeat(15,minmax(0,1fr))] gap-0.5" : colClass,
+        )}
+      >
+        {words.map((word, i) => {
+          const id = ids[i];
+          const current: Status | "neutral" = status[id] ?? "neutral";
+          const hasPencil = Boolean(pencilMarks[id]);
+          const glossBind = gloss.bindWord({
+            text: word.chinese,
+            pinyin: word.pinyin,
+            thai: word.thai,
+          });
 
-        const handleClick = () => {
-          if (pickMode && onPick) {
-            onPick(i);
-            return;
-          }
-          if (superGrid && onHop) {
-            onHop(i);
-            return;
-          }
-          if (pencilMode && onPencilToggle) {
-            onPencilToggle(id);
-            if (showSound) speak(word.chinese);
-            return;
-          }
-          onWordClick(i);
-        };
+          const handleClick = () => {
+            if (gloss.didLongPress()) return;
+            if (pickMode && onPick) {
+              onPick(i);
+              return;
+            }
+            if (superGrid && onHop) {
+              onHop(i);
+              return;
+            }
+            if (pencilMode && onPencilToggle) {
+              onPencilToggle(id);
+              if (showSound) speak(word.chinese);
+              return;
+            }
+            onWordClick(i);
+          };
 
-        const blockContextMenu = (event: React.MouseEvent<HTMLElement>) => {
-          event.preventDefault();
-        };
-
-        if (superGrid) {
-          return (
-            <button
-              key={id}
-              type="button"
-              title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
-              className={cn(
-                "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:manipulation]",
-                statusStyles[current],
-                pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
-                pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
-                rangeAnchorIndex === i &&
-                  "ring-2 ring-orange-500 ring-offset-1",
-              )}
-              onContextMenu={blockContextMenu}
-              onClick={handleClick}
-            >
+          if (superGrid) {
+            return (
+              <button
+                key={id}
+                type="button"
+                title={`${word.chinese} · ${word.pinyin} · ${word.thai}`}
+                className={cn(
+                  "relative flex aspect-square touch-manipulation items-center justify-center overflow-hidden rounded-sm border [-webkit-tap-highlight-color:transparent] [touch-action:manipulation]",
+                  cardSelectLock,
+                  statusStyles[current],
+                  pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
+                  pencilMode && "ring-offset-1 hover:ring-2 hover:ring-orange-400",
+                  rangeAnchorIndex === i &&
+                    "ring-2 ring-orange-500 ring-offset-1",
+                )}
+                {...glossBind}
+                onClick={handleClick}
+              >
                 {hasPencil && (
                   <Pencil
                     className="absolute top-0.5 right-0.5 size-2.5 text-orange-600 dark:text-orange-300"
@@ -179,7 +190,8 @@ export function HskWordGrid({
               type="button"
               data-word-index={i}
               className={cn(
-                "relative flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer select-none [-webkit-tap-highlight-color:transparent] [-webkit-touch-callout:none] [touch-action:manipulation] scroll-mt-36 scroll-mb-28",
+                "relative flex touch-manipulation flex-col items-center justify-center rounded-lg border-2 text-center transition-colors duration-200 hover:shadow-lg active:brightness-95 cursor-pointer [-webkit-tap-highlight-color:transparent] [touch-action:manipulation] scroll-mt-36 scroll-mb-28",
+                cardSelectLock,
                 type.card,
                 statusStyles[current],
                 pickMode && "ring-offset-2 hover:ring-2 hover:ring-sky-400",
@@ -188,7 +200,7 @@ export function HskWordGrid({
               rangeAnchorIndex === i &&
                 "ring-2 ring-orange-500 ring-offset-2",
             )}
-            onContextMenu={blockContextMenu}
+            {...glossBind}
             onClick={handleClick}
           >
               {hasPencil && (
@@ -215,6 +227,8 @@ export function HskWordGrid({
             </button>
           );
         })}
-    </div>
+      </div>
+      {gloss.popup}
+    </>
   );
 }
