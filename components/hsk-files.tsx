@@ -93,7 +93,7 @@ export function HskFilesView({
               {strokeSummaryTitle}
             </div>
             <div className="mt-1 text-xs text-muted-foreground sm:text-sm">
-              {strokeSummaryLevels} · กำหนดจำนวนคำได้ · ขีดใหม่สีแดง · พินอิน/แปล
+              {strokeSummaryLevels} · ชุดละ 500 คำ · ขีดใหม่สีแดง · PDF A4
             </div>
           </button>
 

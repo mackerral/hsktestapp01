@@ -44,7 +44,7 @@ const CONTENT_WIDTH = A4_WIDTH_PX - PAGE_PAD_X * 2;
 const CONTENT_HEIGHT =
   A4_HEIGHT_PX - PAGE_PAD_TOP - PAGE_PAD_BOTTOM - HEADER_BLOCK - FOOTER_BLOCK;
 const PREVIEW_SCALE = 0.38;
-const DEFAULT_BATCH_SIZE = 100;
+const DEFAULT_BATCH_SIZE = 500;
 const MIN_BATCH_SIZE = 10;
 const DEFAULT_CELL_SIZE = 36;
 const MIN_CELL_SIZE = 20;
@@ -69,9 +69,8 @@ const PRINT_COLORS = {
   muted: "#737373",
   faint: "#a3a3a3",
   newStroke: "#f87171",
-  strokeLineGreen: "#16a34a",
+  strokeLineStart: "#991b1b",
   strokeLineRed: "#fca5a5",
-  strokeStart: "#15803d",
   paper: "#ffffff",
   line: "#e5e7eb",
   cellBorder: "#bdbdbd",
@@ -393,8 +392,8 @@ function drawMedianGuide(
   }
   if (total <= 0) return;
 
-  // Keep at least ~1/4 of a stroke-width so short medians still show green.
-  const greenUntil = Math.min(total * 0.35, Math.max(total * 0.2, 90));
+  // Keep at least ~1/4 of a stroke-width so short medians still show dark red.
+  const startUntil = Math.min(total * 0.35, Math.max(total * 0.2, 90));
 
   const strokeRange = (
     color: string,
@@ -443,15 +442,9 @@ function drawMedianGuide(
     if (started) ctx.stroke();
   };
 
-  // Red first, then green on top (round caps previously buried the green tip).
-  strokeRange(PRINT_COLORS.strokeLineRed, greenUntil, total, 55);
-  strokeRange(PRINT_COLORS.strokeLineGreen, 0, greenUntil, 70);
-
-  const [sx, sy] = median[0];
-  ctx.beginPath();
-  ctx.fillStyle = PRINT_COLORS.strokeStart;
-  ctx.arc(sx, sy, 42, 0, Math.PI * 2);
-  ctx.fill();
+  // Pale red first, then dark red on top for the start tip.
+  strokeRange(PRINT_COLORS.strokeLineRed, startUntil, total, 55);
+  strokeRange(PRINT_COLORS.strokeLineStart, 0, startUntil, 70);
 }
 
 function drawStrokeCell(
@@ -755,7 +748,7 @@ function A4SummaryPage({
               color: PRINT_COLORS.muted,
             }}
           >
-            เริ่มขีดจากจุดสีเขียว
+            เริ่มขีดจากเส้นสีแดงเข้ม
           </div>
         </div>
         <div
@@ -1006,7 +999,7 @@ export function StrokeOrderSummarySheet({
               {sheetTitle}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              สรุปลำดับขีด · ขีดใหม่สีแดง · กำหนดจำนวนคำได้ · PDF A4
+              สรุปลำดับขีด · ชุดละ 500 คำ · ขีดใหม่สีแดง · PDF A4
             </p>
           </div>
           <button
@@ -1067,7 +1060,7 @@ export function StrokeOrderSummarySheet({
                 aria-label="จำนวนคำต่อชุด"
               />
               <div className="mt-2 flex flex-wrap gap-2">
-                {[50, 100, 150, 200]
+                {[50, 100, 150, 200, 500]
                   .filter((size) => size <= maxBatchSize)
                   .map((size) => (
                     <button

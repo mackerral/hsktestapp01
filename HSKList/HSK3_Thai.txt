@@ -4,59 +4,59 @@ Chinese	Pinyin	POS	Thai
 安静	ānjìng	adj	เงียบ
 安全	ānquán	adj	ปลอดภัย
 阿姨	āyí	n	ป้า/น้า
-把	bǎ	mw/prep	ด้ามจับ/ให้ (บุรพบทกรรม)
+把	bǎ	mw/prep	ลักษณนาม: ด้าม; จับ; เอา... (มาทำ...)
 办	bàn	v	จัดการ
 搬	bān	v	ย้าย
 办法	bànfǎ	n	วิธีการ
 办公室	bàngōngshì	n	ห้องทำงาน
-帮助	bāngzhù	v	ช่วยเหลือ
+帮助	bāngzhù	v	ช่วย; ช่วยเหลือ
 班级	bānjí	n	ชั้นเรียน
 搬家	bānjiā	v	ย้ายบ้าน
-半天	bàntiān	num+mw	ครึ่งวัน/นานมาก
+半天	bàntiān	num+mw	ครึ่งวัน; นานมาก
 饱	bǎo	adj	อิ่ม
 报纸	bàozhǐ	n	หนังสือพิมพ์
-被	bèi	prep	ถูก (passive marker)
-北	běi	n	เหนือ
+被	bèi	prep	ถูก (ใช้ในประโยคถูกกระทำ)
+北	běi	n	ทิศเหนือ; เหนือ
 北方	běifāng	n	ภาคเหนือ
 变	biàn	v	เปลี่ยน
-遍	biàn	mw	ครั้ง (ตั้งแต่ต้นจนจบ)
+遍	biàn	mw	รอบ; ครั้ง (ตั้งแต่ต้นจนจบ)
 变成	biànchéng	v	กลายเป็น
-变化	biànhuà	v/n	เปลี่ยนแปลง
-表演	biǎoyǎn	v	แสดง/การแสดง
-别的	biéde	pron	อื่นๆ
+变化	biànhuà	v./n.	เปลี่ยนแปลง
+表演	biǎoyǎn	v./n.	แสดง; การแสดง
+别的	biéde	pron	อื่น; อื่น ๆ
 别人	biérén	pron	คนอื่น
-笔记	bǐjì	n	บันทึก
-比较	bǐjiào	v/prep/adv	เปรียบเทียบ/ค่อนข้าง
-笔记本	bǐjìběn	n	สมุดบันทึก
+笔记	bǐjì	n	บันทึก; โน้ต
+比较	bǐjiào	adv./v.	ค่อนข้าง; เปรียบเทียบ
+笔记本	bǐjìběn	n	สมุดโน้ต; สมุดบันทึก
 冰	bīng	n/v	น้ำแข็ง
 冰激凌	bīngjīlíng	n	ไอศกรีม
 病人	bìngrén	n	ผู้ป่วย
 宾馆	bīnguǎn	n	โรงแรม
 冰箱	bīngxiāng	n	ตู้เย็น
-比如	bǐrú	v	เช่น/ยกตัวอย่างเช่น
-比赛	bǐsài	v/n	แข่งขัน
-必须	bìxū	adv	ต้อง (บังคับ)
-不同	bù tóng	expr	ไม่เหมือนกัน
-不但	búdàn	conj	ไม่เพียงแต่
-不见	bújiàn	v	หายไป/ไม่พบ
-不久	bùjiǔ	adj	ไม่นาน
-不行	bùxíng	v/adj	ไม่ได้/ใช้ไม่ได้
-不用	búyòng	adv	ไม่ต้อง
-才	cái	adv	เพิ่ง/แค่
-菜单	càidān	n	เมนูอาหาร
-参加	cānjiā	v	เข้าร่วม
-草	cǎo	n	หญ้า
-草地	cǎodì	n	ทุ่งหญ้า
-层	céng	mw	ชั้น (อาคาร)
-查	chá	v	ค้นหา/ตรวจสอบ
-差	chà	adj/v	แตกต่าง/ขาด
-差不多	chàbuduō	adj/adv	เกือบเหมือน/ประมาณ
-尝	cháng	v	ชิม
-常	cháng	adv	บ่อยๆ
-常见	cháng jiàn	expr	พบบ่อย/ธรรมดา
-常用	cháng yòng	expr	ใช้บ่อย
-常常	chángcháng	adv	บ่อยๆ/มักจะ
-成绩	chéngjì	n	ผลการเรียน/คะแนน
+比如	bǐrú	prep./v.	เช่น; ยกตัวอย่าง
+比赛	bǐsài	v./n.	แข่งขัน; การแข่งขัน
+必须	bìxū	adv.	ต้อง; จำเป็นต้อง
+不同	bùtóng	adj.	แตกต่าง; ไม่เหมือนกัน
+不但	búdàn	conj.	ไม่เพียงแต่
+不见	bújiàn	v.	หาย; ไม่พบ
+不久	bùjiǔ	adv.	ไม่นาน; อีกไม่นาน
+不行	bùxíng	v./adj.	ไม่ได้; ใช้ไม่ได้
+不用	búyòng	adv.	ไม่ต้อง
+才	cái	adv.	เพิ่ง; จึง; แค่
+菜单	càidān	n.	เมนู
+参加	cānjiā	v.	เข้าร่วม
+草	cǎo	n.	หญ้า
+草地	cǎodì	n	สนามหญ้า; ทุ่งหญ้า
+层	céng	mw	ชั้น
+查	chá	v	ค้นหา; ตรวจสอบ
+差	chà	adj/v	ต่าง; ขาด; แย่
+差不多	chàbuduō	adj/adv	เกือบ; ประมาณ; พอๆ กัน
+尝	cháng	v	ชิม; ลอง
+常	cháng	adv	มัก; บ่อย
+常见	chángjiàn	adj.	พบบ่อย
+常用	chángyòng	adj.	ใช้บ่อย
+常常	chángcháng	adv.	บ่อยๆ; มักจะ
+成绩	chéngjì	n	คะแนน; ผลการเรียน
 城市	chéngshì	n	เมือง
 衬衫	chènshān	n	เสื้อเชิ้ต
 迟到	chídào	v	มาสาย
@@ -82,19 +82,19 @@ Chinese	Pinyin	POS	Thai
 大熊猫	dàxióngmāo	n	แพนด้า
 大衣	dàyī	n	เสื้อโค้ท
 得	dé	v	ได้รับ
-得到	dédào	v	ได้รับ
+得到	dédào	v	ได้รับ, ได้มา
 得分	défēn	v/n	ได้คะแนน
 的话	dehuà	part	ถ้าหาก
 得	děi	v	ต้อง
 灯	dēng	n	ไฟ/โคมไฟ
-地	dì	n	พื้น/ดิน
 电	diàn	n/v	ไฟฟ้า
 电梯	diàntī	n	ลิฟต์
 电子书	diànzǐshū	n	หนังสืออิเล็กทรอนิกส์
+地	dì	n	พื้น/ดิน
 地点	dìdiǎn	n	สถานที่
 地方	dìfang	n	ที่/สถานที่
 地图	dìtú	n	แผนที่
-丢	diū	v	ทำหาย
+丢	diū	v	ทำหาย, ทิ้ง
 东	dōng	n	ตะวันออก
 东北	dōngběi	n	ตะวันออกเฉียงเหนือ
 懂得	dǒngde	v	เข้าใจ
@@ -127,7 +127,7 @@ Chinese	Pinyin	POS	Thai
 发现	fāxiàn	v	ค้นพบ
 发展	fāzhǎn	v	พัฒนา
 风	fēng	n	ลม
-封	fēng	mw/v	ซอง (จดหมาย)
+封	fēng	mw/v	ซอง,ฉบับ (จดหมาย)
 分开	fēnkāi	v	แยกออก
 附近	fùjìn	n	ใกล้เคียง/แถวนั้น
 夫妻	fūqī	n	คู่สามีภรรยา
@@ -135,20 +135,20 @@ Chinese	Pinyin	POS	Thai
 复习	fùxí	v	ทบทวน
 该	gāi	v	ควร/ถึงคราว
 干	gàn	v	ทำ
-感兴趣	gǎn xìngqù	expr	สนใจ
+感兴趣	gǎnxìngqù	expr	สนใจ
 感到	gǎndào	v	รู้สึก
+感冒	gǎnmào	n/v	หวัด/เป็นหวัด
 刚	gāng	adv	เพิ่งจะ
 刚才	gāngcái	n	เมื่อกี้
 刚刚	gānggāng	adv	เพิ่งจะ
 干净	gānjìng	adj	สะอาด
-感冒	gǎnmào	n/v	หวัด/เป็นหวัด
 高铁	gāotiě	n	รถไฟความเร็วสูง
 更	gèng	adv	ยิ่ง/ยิ่งกว่า
 根据	gēnjù	v/prep/n	ตามที่/อ้างอิง
 公斤	gōngjīn	mw	กิโลกรัม
 公园	gōngyuán	n	สวนสาธารณะ
 工作日	gōngzuòrì	n	วันทำงาน
-刮	guā	v	พัด (ลม)/โกน
+刮	guā	v	พัด(ลม)/โกน
 关	guān	v/n	ปิด
 关机	guānjī	v	ปิดเครื่อง
 关系	guānxì	n/v	ความสัมพันธ์
@@ -161,8 +161,8 @@ Chinese	Pinyin	POS	Thai
 故事	gùshi	n	เรื่องราว/นิทาน
 海	hǎi	n	ทะเล
 害怕	hàipà	v	กลัว
-好多	hǎoduō	num	หลายมาก
-好久	hǎojiǔ	adj	นานมาก
+好多	hǎoduō	num	มากมาย
+好久	hǎojiǔ	adj	ตั้งนาน/นานมาก
 号码	hàomǎ	n	หมายเลข
 好像	hǎoxiàng	v/adv	เหมือน/ดูเหมือน
 河	hé	n	แม่น้ำ
@@ -179,23 +179,23 @@ Chinese	Pinyin	POS	Thai
 环境	huánjìng	n	สิ่งแวดล้อม
 欢迎	huānyíng	v	ยินดีต้อนรับ
 花园	huāyuán	n	สวนดอกไม้
-会	huì	n	การประชุม
-回答	huídá	v	ตอบ
+会	huì	n	การประชุม(คำย่อของ 会议)
 会议	huìyì	n	การประชุม
-或	huò	conj/adv	หรือ
-或者	huòzhě	conj	หรือ
+回答	huídá	v	ตอบ
+或	huò	conj/adv	หรือ (ทางการ/ภาษาเขียน)
+或者	huòzhě	conj	หรือ/หรือว่า
 护照	hùzhào	n	หนังสือเดินทาง
+鸡	jī	n	ไก่
 极	jí	adv	มากที่สุด
 急	jí	adj/v	รีบ/ด่วน
 记	jì	v	จำ/บันทึก
 季	jì	n	ฤดูกาล
-鸡	jī	n	ไก่
 加	jiā	v	เพิ่ม
 检查	jiǎnchá	v	ตรวจสอบ
-坚持	jiānchí	v	ยืนหยัด
+坚持	jiānchí	v	ยืนหยัด/ทำต่อไป
 简单	jiǎndān	adj	ง่าย
 讲	jiǎng	v	พูด/บรรยาย
-健康	jiànkāng	adj	สุขภาพดี
+健康	jiànkāng	adj	สุขภาพดี/สุขภาพ
 见面	jiànmiàn	v	พบกัน
 检票	jiǎnpiào	v	ตรวจตั๋ว
 角	jiǎo	mw	เจี่ยว (0.1 หยวน)
@@ -206,7 +206,7 @@ Chinese	Pinyin	POS	Thai
 接	jiē	v	รับ/ต้อนรับ
 街	jiē	n	ถนน/ย่าน
 结婚	jiéhūn	v	แต่งงาน
-解决	jiějué	v	แก้ปัญหา
+解决	jiějué	v	แก้ปัญหา,แก้ไข
 姐妹	jiěmèi	n	พี่สาวน้องสาว
 节目	jiémù	n	รายการ
 节日	jiérì	n	เทศกาล/วันหยุด
@@ -215,14 +215,14 @@ Chinese	Pinyin	POS	Thai
 机会	jīhuì	n	โอกาส
 季节	jìjié	n	ฤดูกาล
 斤	jīn	mw	จิน (0.5 กิโลกรัม)
-经过	jīngguò	v/n	ผ่าน
+经过	jīngguò	v/n	ผ่าน/ทางผ่าน
 经理	jīnglǐ	n	ผู้จัดการ
 旧	jiù	adj	เก่า
 久	jiǔ	adj	นาน
 酒	jiǔ	n	เครื่องดื่มแอลกอฮอล์
-句	jù	mw	ประโยค
-决定	juédìng	v/n	ตัดสินใจ
+句	jù	mw	ประโยค(ลักษณนาม)
 句子	jùzi	n	ประโยค
+决定	juédìng	v/n	ตัดสินใจ/การตัดสินใจ
 卡	kǎ	n	บัตร
 开花	kāihuā	v	ออกดอก
 开会	kāihuì	v	ประชุม
@@ -239,7 +239,7 @@ Chinese	Pinyin	POS	Thai
 课文	kèwén	n	บทเรียน
 空调	kōngtiáo	n	เครื่องปรับอากาศ
 哭	kū	v	ร้องไห้
-筷子	kuàizi	n	ตะเกียบ
+筷子	Kuaiji	n	ตะเกียบ
 矿泉水	kuàngquánshuǐ	n	น้ำแร่
 来自	láizì	v	มาจาก
 蓝	lán	adj	สีน้ำเงิน
@@ -304,7 +304,7 @@ Chinese	Pinyin	POS	Thai
 起飞	qǐfēi	v	ขึ้นบิน
 奇怪	qíguài	adj	แปลก
 清楚	qīngchu	adj/v	ชัดเจน
-请假	qǐngjià	v	ลา (หยุดงาน)
+请假	qǐngjià	v	ลาหยุด
 请客	qǐngkè	v	เลี้ยง (ออกค่าใช้จ่าย)
 其实	qíshí	adv	จริงๆ แล้ว
 其他	qítā	pron	อื่นๆ
@@ -312,7 +312,7 @@ Chinese	Pinyin	POS	Thai
 秋天	qiūtiān	n	ฤดูใบไม้ร่วง
 裙子	qúnzi	n	กระโปรง
 然后	ránhòu	conj	หลังจากนั้น
-认得	rènde	v	รู้จัก
+认得	rènde	v	รู้จัก/จำได้
 认为	rènwéi	v	คิดว่า
 认真	rènzhēn	adj	จริงจัง
 热情	rèqíng	adj	กระตือรือร้น/อบอุ่น
@@ -324,7 +324,7 @@ Chinese	Pinyin	POS	Thai
 山	shān	n	ภูเขา
 上衣	shàngyī	n	เสื้อชั้นนอก
 勺子	sháozi	n	ช้อน
-身边	shēnbiān	n	ข้างๆ ตัว
+身边	shēnbiān	n	ข้างตัว
 声	shēng	n/mw	เสียง
 身高	shēngāo	n	ส่วนสูง
 生活	shēnghuó	n/v	ชีวิต/ใช้ชีวิต
@@ -337,8 +337,8 @@ Chinese	Pinyin	POS	Thai
 受	shòu	v	รับ/ทน
 瘦	shòu	adj	ผอม
 收	shōu	v	เก็บ/รับ
-受到	shòudào	v	ได้รับ
-收到	shōudào	v	รับได้
+受到	shòudào	v	ได้รับ(ผลกระทบ ความช่วยเหลือ การศึกษา ฯลฯ)
+收到	shōudào	v	ได้รับ/รับมา(ของ จดหมาย พัสดุ ข้อความ)
 树	shù	n	ต้นไม้
 刷	shuā	v	แปรง
 双	shuāng	mw	คู่
@@ -349,7 +349,7 @@ Chinese	Pinyin	POS	Thai
 司机	sījī	n	คนขับรถ
 太阳	tàiyáng	n	ดวงอาทิตย์
 糖	táng	n	น้ำตาล/ลูกอม
-特别	tèbié	adj/adv	พิเศษ/โดยเฉพาะ
+特别	tèbié	adj/adv	พิเศษ, เป็นพิเศษ
 甜	tián	adj	หวาน
 跳	tiào	v	กระโดด
 提高	tígāo	v	ยกระดับ/ปรับปรุง
@@ -363,7 +363,7 @@ Chinese	Pinyin	POS	Thai
 腿	tuǐ	n	ขา
 突然	tūrán	adj	ทันใด/กะทันหัน
 图书馆	túshūguǎn	n	ห้องสมุด
-外地	wàidì	n	ต่างจังหวัด
+外地	wàidì	n	ต่างถิ่น, ต่างจังหวัด
 外卖	wàimài	v/n	สั่งอาหาร/อาหารเดลิเวอรี
 外语	wàiyǔ	n	ภาษาต่างประเทศ
 碗	wǎn	n	ชาม
@@ -372,7 +372,7 @@ Chinese	Pinyin	POS	Thai
 忘记	wàngjì	v	ลืม
 网球	wǎngqiú	n	เทนนิส
 网站	wǎngzhàn	n	เว็บไซต์
-晚会	wǎnhuì	n	งานปาร์ตี้ตอนเย็น
+晚会	wǎnhuì	n	งานเลี้ยงตอนเย็น
 为	wèi	prep	เพื่อ
 为了	wèile	prep	เพื่อที่จะ
 卫生间	wèishēngjiān	n	ห้องน้ำ
@@ -381,8 +381,8 @@ Chinese	Pinyin	POS	Thai
 西	xī	n	ตะวันตก
 喜爱	xǐ'ài	v	ชื่นชอบ
 先	xiān	adv	ก่อน
-向	xiàng	v/prep	หัน/ไปทาง
-像	xiàng	v/adv/n	เหมือนกับ
+向	xiàng	v/prep	ไปทาง/หันไปทาง
+像	xiàng	v/adv/n	เหมือน/เหมือนกับ
 相机	xiàngjī	n	กล้องถ่ายรูป
 香蕉	xiāngjiāo	n	กล้วย
 相信	xiāngxìn	v	เชื่อ
@@ -394,9 +394,9 @@ Chinese	Pinyin	POS	Thai
 夏天	xiàtiān	n	ฤดูร้อน
 西北	xīběi	n	ตะวันตกเฉียงเหนือ
 鞋	xié	n	รองเท้า
-西方	xīfāng	n	ตะวันตก
+西方	xīfāng	n	โลกตะวันตก/ฝั่งตะวันตก
 西瓜	xīguā	n	แตงโม
-习惯	xíguàn	v/n	ชิน/นิสัย
+习惯	xíguàn	v/n	เคยชิน/นิสัย
 信	xìn	v/n	เชื่อ/จดหมาย
 西南	xīnán	n	ตะวันตกเฉียงใต้
 行	xíng	v/adj	ได้/โอเค
@@ -420,11 +420,11 @@ Chinese	Pinyin	POS	Thai
 要求	yāoqiú	v/n	ร้องขอ/ข้อกำหนด
 牙刷	yáshuā	n	แปรงสีฟัน
 页	yè	mw	หน้า (หนังสือ)
-一般	yìbān	adj	ทั่วไป/ธรรมดา
+一般	yìbān	adj	ทั่วไป, โดยทั่วไป
 一边	yìbiān	adv	ในขณะที่
 一定	yídìng	adj/adv	แน่นอน
 一共	yígòng	adv	รวมทั้งหมด
-以后	yǐhòu	n	หลังจาก
+以后	yǐhòu	n	หลังจากนี้
 一块儿	yíkuàir	n/adv	ด้วยกัน
 应该	yīnggāi	v	ควร
 影响	yǐngxiǎng	v/n	มีผลต่อ/ผลกระทบ
@@ -435,7 +435,7 @@ Chinese	Pinyin	POS	Thai
 以前	yǐqián	n	ก่อนหน้า
 以上	yǐshàng	n	ขึ้นไป/ข้างต้น
 以外	yǐwài	n	นอกจาก
-以为	yǐwéi	v	คิดว่า (ผิด)
+以为	yǐwéi	v	คิดผิดว่า
 以下	yǐxià	n	ข้างล่าง/ต่ำกว่า
 一样	yíyàng	adj	เหมือนกัน
 一直	yìzhí	adv	ตลอด/เรื่อยๆ
@@ -449,7 +449,7 @@ Chinese	Pinyin	POS	Thai
 邮箱	yóuxiāng	n	กล่องจดหมาย/อีเมล
 有用	yǒuyòng	adj	มีประโยชน์
 园	yuán	n	สวน
-员	yuán	suffix	พนักงาน/สมาชิก (suffix)
+员	yuán	suffix	พนักงาน/สมาชิก
 愿意	yuànyì	v	ยินดี/เต็มใจ
 遇到	yùdào	v	พบเจอ
 越	yuè	adv	ยิ่ง...ยิ่ง
@@ -461,24 +461,24 @@ Chinese	Pinyin	POS	Thai
 语言	yǔyán	n	ภาษา
 雨衣	yǔyī	n	เสื้อกันฝน
 脏	zāng	adj	สกปรก
-咱们	zánmen	pron	พวกเรา (รวมผู้ฟัง)
+咱们	zánmen	pron	พวกเรา(รวมผู้ฟัง)
 怎么办	zěnmebàn	expr	ทำอย่างไรดี
-怎样	zěnyàng	pron	อย่างไร
+怎样	zěnyàng	pron	อย่างไร/แบบไหน
 站	zhàn	v	ยืน
 长	zhǎng	v/suffix	เติบโต
-张	zhāng	v/mw	แผ่น (classifier สิ่งแบน)
+张	zhāng	v/mw	แผ่น (สิ่งแบน)
 照	zhào	v	ส่อง/ถ่าย
 照顾	zhàogù	v	ดูแล
-着急	zháojí	adj	กังวล/รีบ
+着急	zháojí	adj	ร้อนใจ/กังวล
 照片	zhàopiàn	n	รูปถ่าย
 照相	zhàoxiàng	v	ถ่ายรูป
 只	zhǐ	adv	เพียงแต่/แค่
 纸	zhǐ	n	กระดาษ
 只能	zhǐ néng	expr	ทำได้เพียง
 直到	zhídào	v	จนกระทั่ง
-只是	zhǐshì	adv/conj	แค่/เพียงแต่
-只要	zhǐyào	conj	ขอเพียงแต่
-只有	zhǐyǒu	conj	มีเพียง/แต่เพียง
+只是	zhǐshì	adv/conj	มีแต่/เพียง/มีแต่ต้อง
+只要	zhǐyào	conj	ขอแต่/ขอเพียงแต่
+只有	zhǐyǒu	conj	มีเพียง/ท่านั้นจึง...
 种	zhǒng	mw	ชนิด/ประเภท
 中	zhōng	n	กลาง
 中间	zhōngjiān	n	ตรงกลาง
@@ -488,10 +488,10 @@ Chinese	Pinyin	POS	Thai
 主要	zhǔyào	adj	หลัก/สำคัญ
 注意	zhùyì	v	ระวัง/ใส่ใจ
 住院	zhùyuàn	v	นอนโรงพยาบาล
-子	zi	suffix	(noun suffix)
+子	zi	suffix	(คำลงท้ายที่ใช้สร้างคำนาม)
 字典	zìdiǎn	n	พจนานุกรม
 自行车	zìxíngchē	n	จักรยาน
-总	zǒng	adv/v/adj	รวม/เสมอ
+总	zǒng	adv/v/adj	ทั้งหมด/ดยรวม
 总是	zǒngshì	adv	เสมอ
 嘴	zuǐ	n	ปาก
 最好	zuìhǎo	adv	ดีที่สุด/ควร

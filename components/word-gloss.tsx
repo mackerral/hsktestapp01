@@ -17,7 +17,47 @@ const MOUSE_CONTEXT_GRACE_MS = 700;
 /** Clear click-suppress after long-press so later taps are not eaten. */
 const SUPPRESS_CLICK_MS = 450;
 
-export type GlossWord = { text: string; pinyin: string; thai: string };
+export type GlossWord = {
+  text: string;
+  pinyin: string;
+  thai: string;
+  /** Part of speech abbreviation from HSK lists (e.g. n, v, adj). */
+  pos?: string;
+};
+
+const POS_THAI: Record<string, string> = {
+  n: "คำนาม",
+  v: "คำกริยา",
+  adj: "คำคุณศัพท์",
+  adv: "คำวิเศษณ์",
+  pron: "สรรพนาม",
+  num: "ตัวเลข",
+  mw: "ลักษณนาม",
+  measure: "ลักษณนาม",
+  part: "คำช่วย",
+  particle: "คำช่วย",
+  prep: "คำบุพบท",
+  conj: "คำเชื่อม",
+  expr: "สำนวน",
+  interj: "คำอุทาน",
+  aux: "กริยาช่วย",
+  pref: "อุปสรรค",
+  suf: "ปัจจัย",
+};
+
+function formatPos(pos: string | undefined): string | null {
+  const raw = pos?.trim();
+  if (!raw) return null;
+  return raw
+    .split("/")
+    .map((part) => {
+      const key = part.trim().toLowerCase();
+      const label = POS_THAI[key];
+      return label ? `${label} (${key})` : part.trim();
+    })
+    .filter(Boolean)
+    .join(" / ");
+}
 
 export function WordGlossPopup({
   word,
@@ -36,12 +76,14 @@ export function WordGlossPopup({
 
   if (typeof document === "undefined") return null;
 
+  const posLabel = formatPos(word.pos);
+
   return createPortal(
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-6 select-none [-webkit-user-select:none]"
       role="dialog"
       aria-modal="true"
-      aria-label={`${word.text} ${word.pinyin} ${word.thai}`}
+      aria-label={`${word.text} ${word.pinyin} ${word.thai}${posLabel ? ` ${posLabel}` : ""}`}
       onClick={onClose}
       onPointerDown={(event) => event.stopPropagation()}
     >
@@ -58,6 +100,11 @@ export function WordGlossPopup({
         <p className="mt-2 text-base leading-snug text-muted-foreground">
           {word.thai || "—"}
         </p>
+        {posLabel ? (
+          <p className="mt-3 text-sm font-medium text-foreground/80">
+            {posLabel}
+          </p>
+        ) : null}
         <p className="mt-5 text-xs text-muted-foreground/80">แตะเพื่อปิด</p>
       </div>
     </div>,

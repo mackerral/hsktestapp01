@@ -133,6 +133,7 @@ export function HskWordGrid({
             text: word.chinese,
             pinyin: word.pinyin,
             thai: word.thai,
+            pos: word.pos,
           });
 
           const handleClick = () => {

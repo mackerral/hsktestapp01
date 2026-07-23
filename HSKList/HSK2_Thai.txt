@@ -42,11 +42,11 @@ Chinese	Pinyin	POS	Thai
 高	gāo	adj/n	สูง
 告诉	gàosu	v	บอก
 高中	gāozhōng	n	มัธยมปลาย
-跟	gēn	prep/conj	กับ/ตาม
+跟	gēn	prep/conj	ตาม
 个子	gèzi	n	รูปร่าง/ส่วนสูง
 公交车	gōngjiāochē	n	รถประจำทาง
-过	guo	part	(particle บอกประสบการณ์)
-过	guò	v	ผ่าน
+过	guo	part	เคย...มาแล้ว(บอกประสบการณ์)
+过	guò	v	ผ่าน,ข้าม
 过来	guòlái	v	มาหา
 过年	guònián	v	ฉลองปีใหม่
 过去	guòqù	v	ผ่านไป
@@ -66,7 +66,7 @@ Chinese	Pinyin	POS	Thai
 教室	jiàoshì	n	ห้องเรียน
 机场	jīchǎng	n	สนามบิน
 记得	jìde	v	จำได้
-介绍	jièshào	v	แนะนำ
+介绍	jièshào	v	แนะนำ(ตัวให้รู้จัก)
 进	jìn	v	เข้า
 近	jìn	adj	ใกล้
 经常	jīngcháng	adv	บ่อยๆ
@@ -101,7 +101,7 @@ Chinese	Pinyin	POS	Thai
 门	mén	n	ประตู
 门口	ménkǒu	n	ทางเข้า/ปากประตู
 门票	ménpiào	n	ตั๋วเข้าชม
-面	miàn	suffix	ด้าน (suffix)
+面	miàn	suffix	ด้าน
 名	míng	n/mw	ชื่อ/คน
 拿	ná	v	หยิบ/ถือ
 奶茶	nǎichá	n	ชานม
@@ -118,9 +118,9 @@ Chinese	Pinyin	POS	Thai
 前面	qiánmiàn	n	ด้านหน้า
 起来	qǐlái	v	ลุกขึ้น
 晴	qíng	adj	ฟ้าแจ่มใส
-球	qiú	n	ลูกบอล
+球	qiú	n	ลูกบอล/ทรงกลม
 妻子	qīzi	n	ภรรยา
-让	ràng	v/prep	ให้/ยอม
+让	ràng	v/prep	ให้/อนุญาต
 肉	ròu	n	เนื้อ
 商场	shāngchǎng	n	ห้างสรรพสินค้า
 上来	shànglái	v	ขึ้นมา
@@ -141,7 +141,7 @@ Chinese	Pinyin	POS	Thai
 疼	téng	adj/v	เจ็บปวด
 题	tí	n	โจทย์/หัวข้อ
 踢	tī	v	เตะ
-条	tiáo	mw/n	ชิ้น (สำหรับสิ่งยาว)
+条	tiáo	mw/n	(คำนามหรือลักษณนามของสิ่งที่เป็นเส้นยาว)
 跳舞	tiàowǔ	v	เต้นรำ
 头	tóu	n/mw	ศีรษะ
 外国	wàiguó	n	ต่างประเทศ
@@ -149,9 +149,9 @@ Chinese	Pinyin	POS	Thai
 完	wán	v	เสร็จ
 万	wàn	num	หมื่น
 忘	wàng	v	ลืม
-往	wǎng	v/prep	ไปทาง
+往	wǎng	v/prep	ไปทาง/ไปยัง
 网上	wǎngshang	n	บนอินเทอร์เน็ต
-位	wèi	mw	ท่าน (นับคนอย่างสุภาพ)
+位	wèi	mw	ท่าน (ลักษณนามของคน)
 为什么	wèi shénme	expr	ทำไม
 洗	xǐ	v	ล้าง
 下来	xiàlái	v	ลงมา
@@ -175,22 +175,22 @@ Chinese	Pinyin	POS	Thai
 因为	yīnwèi	prep/conj	เพราะว่า
 一起	yìqǐ	adv	ด้วยกัน
 意思	yìsi	n	ความหมาย
-游	yóu	v	ว่ายน้ำ/ท่องเที่ยว
+游	yóu	v	เคลื่อนที่ไปมา,ว่าย,เที่ยว
 右	yòu	n	ขวา
-有意思	yǒu yìsi	expr	น่าสนใจ
+有意思	yǒuyìsi	expr	น่าสนใจ
 右边	yòubian	n	ด้านขวา
-有时（候）	yǒushí(hou)	adv	บางครั้ง
+有时候	yǒushíhou	adv	บางครั้ง
 游泳	yóuyǒng	v	ว่ายน้ำ
 鱼	yú	n	ปลา
 远	yuǎn	adj	ไกล
 运动	yùndòng	v/n	ออกกำลังกาย/กีฬา
 站	zhàn	n	สถานี
 丈夫	zhàngfu	n	สามี
-着	zhe	part	(particle บอกสภาวะต่อเนื่อง)
+着	zhe	part	อยู่(ผลหรือสภาพที่ยังคงอยู่)
 这么	zhème	pron	แบบนี้
-正	zhèng	adv/adj	กำลัง/ถูกต้อง
+正	zhèng	adv/adj	กำลัง.../ตรง
 这样	zhèyàng	pron	แบบนี้
-周	zhōu	n/mw	สัปดาห์
+周	zhōu	n/mw	สัปดาห์; รอบ; ลักษณนาม: รอบ
 准备	zhǔnbèi	v	เตรียม
 自己	zìjǐ	pron	ตัวเอง
 走	zǒu	v	เดิน/ไป
